@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEON GRID // Cyberpunk Typing Arcade</title>
+  <!-- Google Fonts for Cyberpunk Aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Retro CRT Scanlines & Screen Flicker Overlay for Arcade Vibe -->
+  <div class="crt-overlay"></div>
+  <div class="scanlines"></div>
+
+  <!-- Main Arcade Cabinet Container -->
+  <div id="arcade-cabinet">
+    <div class="cabinet-bezel-top">
+      <div class="bezel-marquee">
+        <span class="glow-text-magenta">N E O N</span>
+        <span class="marquee-divider">//</span>
+        <span class="glow-text-cyan">G R I D</span>
+      </div>
+    </div>
+
+    <!-- Inner Screen Area -->
+    <div id="arcade-screen">
+      
+      <!-- ==================== VIEW 1: DASHBOARD ==================== -->
+      <div id="dashboard-view" class="view active">
+        <header class="arcade-header">
+          <div class="header-logo">
+            <h1 class="flicker-slow glow-text-cyan">NEON GRID</h1>
+            <p class="tagline">CYBERPUNK TYPING ARCADE v1.0</p>
+          </div>
+          <div class="credit-slot">
+            <span class="credit-label">INSERT COIN</span>
+            <span class="credit-val glow-text-yellow">READY PLAYER 1</span>
+          </div>
+        </header>
+
+        <main class="dashboard-main">
+          <!-- Game Selection Grid -->
+          <section class="game-selection">
+            <div class="section-header-row">
+              <h2 class="section-title" style="margin-bottom: 0;">// SELECT PROGRAM</h2>
+              <span class="section-hint">type <span class="highlight-menu">menu</span> when ever you want to come back to this screen</span>
+            </div>
+            
+            <div class="game-grid">
+              <!-- Game Card: Lane Switcher (Active) -->
+              <div class="game-card active-card" id="card-lane-switcher">
+                <div class="card-glow-border"></div>
+                <div class="card-content">
+                  <div class="card-badge glow-badge-cyan">ACTIVE</div>
+                  <h3 class="game-title">LANE_SWITCHER.EXE</h3>
+                  <p class="game-desc">Navigate a 5-lane hyper-highway. Dodge obstacles by typing "left" or "right". Destroy barricades by typing "spin" to enter a 0.7s overdrive.</p>
+                  <div class="game-stats-peek">
+                    <span>RECORD: <span class="glow-text-yellow" id="dash-high-score">0000</span> PTS</span>
+                  </div>
+                  <button id="btn-play-lane-switcher" class="arcade-btn btn-cyan animate-pulse">BOOT GAME</button>
+                </div>
+              </div>
+
+              <!-- Game Card: Space Defender (Active) -->
+              <div class="game-card active-card" id="card-word-defender">
+                <div class="card-glow-border"></div>
+                <div class="card-content">
+                  <div class="card-badge glow-badge-cyan">ACTIVE</div>
+                  <h3 class="game-title">WORD_DEFENDER.BIN</h3>
+                  <p class="game-desc">A retro space shooter. Words descend from the sky; type them down before they breach your thermal shields. Network connection status: Online.</p>
+                  <div class="game-stats-peek">
+                    <span>RECORD: <span class="glow-text-yellow" id="dash-high-score-defender">0000</span> PTS</span>
+                  </div>
+                  <button id="btn-play-word-defender" class="arcade-btn btn-cyan animate-pulse">BOOT GAME</button>
+                </div>
+              </div>
+
+              <!-- Game Card: Cyber Drift (Active) -->
+              <div class="game-card active-card" id="card-cyber-drift">
+                <div class="card-glow-border"></div>
+                <div class="card-content">
+                  <div class="card-badge glow-badge-cyan">ACTIVE</div>
+                  <h3 class="game-title">CYBER_DRIFT.SYS</h3>
+                  <p class="game-desc">Speed-run test of pure typing velocity. Drifting down a winding highway; type prompt words to negotiate drift gates and activate boost mode.</p>
+                  <div class="game-stats-peek">
+                    <span>RECORD: <span class="glow-text-yellow" id="dash-high-score-cyber-drift">0000</span> PTS</span>
+                  </div>
+                  <button id="btn-play-cyber-drift" class="arcade-btn btn-cyan animate-pulse">BOOT GAME</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Sidebar Information Panels -->
+          <aside class="dashboard-sidebar">
+            <div class="cyber-panel stats-panel">
+              <h3 class="panel-title">// CORE_DATA.LOG</h3>
+              <div class="panel-row">
+                <span>SYSTEM INTEGRITY:</span>
+                <span class="glow-text-cyan">100% ONLINE</span>
+              </div>
+              <div class="panel-row">
+                <span>TOTAL RUNS:</span>
+                <span id="stat-total-runs" class="glow-text-magenta">0</span>
+              </div>
+              <div class="panel-row">
+                <span>PEAK VELOCITY:</span>
+                <span id="stat-peak-wpm" class="glow-text-yellow">0 WPM</span>
+              </div>
+            </div>
+
+            <div class="cyber-panel tip-panel">
+              <h3 class="panel-title">// TRANSMISSION</h3>
+              <p class="tip-text">"WARNING: Grid security nodes (orange boxes) will destabilize on impact. Initiate 'spin' cycle to convert node data into score points."</p>
+            </div>
+          </aside>
+        </main>
+
+        <footer class="arcade-footer">
+          <button id="btn-show-scores" class="arcade-btn btn-magenta">LEADERBOARD</button>
+          <button id="btn-show-settings" class="arcade-btn btn-purple">SETTINGS</button>
+        </footer>
+      </div>
+
+      <!-- ==================== VIEW 2: GAME SCREEN ==================== -->
+      <div id="game-view" class="view">
+        <div class="game-layout">
+          <!-- Top HUD -->
+          <header class="game-hud">
+            <div class="hud-item score-box">
+              <span class="hud-label">SCORE</span>
+              <span id="hud-score" class="hud-val glow-text-cyan">000000</span>
+            </div>
+            
+            <div class="hud-item timer-box">
+              <span class="hud-label">SYSTEM_TIMER</span>
+              <span id="hud-timer" class="hud-val glow-text-yellow">05:00</span>
+            </div>
+
+            <div class="hud-item shields-box">
+              <span class="hud-label">SHIELDS</span>
+              <div id="hud-shields" class="shield-indicator-container">
+                <span class="shield-cell active"></span>
+                <span class="shield-cell active"></span>
+                <span class="shield-cell active"></span>
+              </div>
+            </div>
+          </header>
+
+          <!-- Game Canvas Container -->
+          <div class="canvas-container">
+            <canvas id="game-canvas"></canvas>
+
+            <!-- Overlay screens (absolute overlays on canvas) -->
+            <!-- Start Screen Overlay -->
+            <div id="game-start-overlay" class="canvas-overlay active">
+              <div class="overlay-glass">
+                <h2 id="start-overlay-title" class="flicker glow-text-cyan">LANE SWITCHER</h2>
+                <div id="start-overlay-instructions" class="game-instructions">
+                  <p class="instruction-line"><span class="highlight">TYPE THE WORDS</span> to navigate the car:</p>
+                  <div class="control-legend">
+                    <div class="control-key"><span>left</span> <span class="action-desc">→ Switch left 1 lane</span></div>
+                    <div class="control-key"><span>right</span> <span class="action-desc">→ Switch right 1 lane</span></div>
+                    <div class="control-key"><span>spin</span> <span class="action-desc">→ 0.7s Invincibility / Destroy obstacles</span></div>
+                  </div>
+                  <p class="warning-text">Survival window: 5 minutes. Do not crash into orange blocks!</p>
+                </div>
+                <div class="start-prompt">
+                  <p class="prompt-text">TYPE <span class="glow-text-magenta italic bold">start</span> TO INITIATE SYSTEM</p>
+                  <div class="typing-target-hint">
+                    <span class="typed-indicator"></span><span class="remaining-indicator">s-t-a-r-t</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Over / Victory Overlay -->
+            <div id="game-over-overlay" class="canvas-overlay">
+              <div class="overlay-glass">
+                <h2 id="game-over-title" class="glow-text-magenta flicker-slow">SYSTEM FAILURE</h2>
+                <p class="game-over-reason" id="game-over-reason">Shield integrity compromised.</p>
+                
+                <div class="final-stats">
+                  <div class="stat-box">
+                    <span class="stat-box-label">FINAL SCORE</span>
+                    <span id="final-score-val" class="stat-box-val glow-text-cyan">0</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-box-label">TIME SURVIVED</span>
+                    <span id="final-time-val" class="stat-box-val glow-text-yellow">0:00</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-box-label">AVERAGE SPEED</span>
+                    <span id="final-wpm-val" class="stat-box-val glow-text-magenta">0 words per minute</span>
+                  </div>
+                </div>
+
+                <div class="restart-prompt">
+                  <p class="prompt-text">TYPE <span class="glow-text-cyan italic bold">restart</span> TO REBOOT RUN</p>
+                  <div class="typing-target-hint">
+                    <span class="typed-indicator"></span><span class="remaining-indicator">r-e-s-t-a-r-t</span>
+                  </div>
+                  <p class="or-text">or type <span class="glow-text-yellow italic">exit</span> to return to dashboard</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pause Overlay -->
+            <div id="game-paused-overlay" class="canvas-overlay">
+              <div class="overlay-glass">
+                <h2 class="glow-text-yellow">SYSTEM PAUSED</h2>
+                <p class="prompt-text">TYPE <span class="glow-text-cyan italic bold">resume</span> TO CONTINUE</p>
+                <p class="or-text">or type <span class="glow-text-magenta italic">exit</span> to quit run</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Typing Assistant Panel -->
+          <footer class="typing-hud">
+            <div class="hud-sub-panel cmd-dictionary">
+              <div class="cmd-item" id="cmd-left">
+                <span class="cmd-label">LEFT_TURN</span>
+                <div class="cmd-word"><span class="highlight-typed"></span><span class="text-to-type">left</span></div>
+              </div>
+              <div class="cmd-item" id="cmd-spin">
+                <span class="cmd-label">OVERDRIVE_SPIN</span>
+                <div class="cmd-word"><span class="highlight-typed"></span><span class="text-to-type">spin</span></div>
+              </div>
+              <div class="cmd-item" id="cmd-right">
+                <span class="cmd-label">RIGHT_TURN</span>
+                <div class="cmd-word"><span class="highlight-typed"></span><span class="text-to-type">right</span></div>
+              </div>
+            </div>
+
+            <div class="hud-sub-panel buffer-panel">
+              <span class="buffer-label">KEYBOARD INPUT STREAM</span>
+              <div class="input-display-wrapper">
+                <div id="typing-buffer" class="buffer-text"></div>
+                <div class="cursor glow-cursor"></div>
+              </div>
+              <div id="typing-feedback" class="feedback-text">AWAITING INPUT...</div>
+            </div>
+
+            <div class="hud-sub-panel game-controls-info">
+              <button id="btn-pause-game" class="arcade-btn btn-small btn-purple">PAUSE [ESC]</button>
+              <button id="btn-quit-game" class="arcade-btn btn-small btn-magenta">ABORT RUN</button>
+            </div>
+          </footer>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW 3: HIGH SCORES ==================== -->
+      <div id="high-scores-view" class="view">
+        <header class="sub-view-header">
+          <h2 class="glow-text-magenta">// ARCHIVED_RECORDS.DAT</h2>
+        </header>
+
+        <div class="leaderboard-container">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>RANK</th>
+                <th>GAME</th>
+                <th>PILOT</th>
+                <th>SCORE</th>
+                <th>WPM</th>
+                <th>TIME</th>
+                <th>DATE</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <!-- High score rows inserted dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="sub-view-footer">
+          <button id="btn-scores-back" class="arcade-btn btn-cyan">RETURN TO TERMINAL</button>
+        </footer>
+      </div>
+
+      <!-- ==================== VIEW 4: SETTINGS ==================== -->
+      <div id="settings-view" class="view">
+        <header class="sub-view-header">
+          <h2 class="glow-text-yellow">// CONFIG_PARAMETERS.SYS</h2>
+        </header>
+
+        <div class="settings-container">
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">SYNTH_AUDIO_SYNTHESIS</span>
+              <span class="setting-desc">Toggles Web Audio synthesizer-generated retro sound effects.</span>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" id="setting-sound-toggle" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">CHASSIS_GLOW_EFFECTS</span>
+              <span class="setting-desc">Renders animated trails, road grids, and explosion sparks. Disable if experiencing frame drops.</span>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" id="setting-particles-toggle" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">HIGH_SPEED_BANDWIDTH</span>
+              <span class="setting-desc">Increases the initial spawn speed of obstacles for advanced typists.</span>
+            </div>
+            <div class="setting-control">
+              <select id="setting-difficulty" class="cyber-select">
+                <option value="normal">NORMAL CHASSIS</option>
+                <option value="hyper">HYPER DRIVE (FAST)</option>
+                <option value="overload">OVERLOAD (EXTREME)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row danger-row">
+            <div class="setting-info">
+              <span class="setting-title glow-text-magenta">PURGE_HIGH_SCORES</span>
+              <span class="setting-desc">Delete all locally saved score logs. This action cannot be undone.</span>
+            </div>
+            <div class="setting-control">
+              <button id="btn-purge-scores" class="arcade-btn btn-magenta btn-small">PURGE RECORDS</button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="sub-view-footer">
+          <button id="btn-settings-back" class="arcade-btn btn-cyan">SAVE AND EXIT</button>
+        </footer>
+      </div>
+
+    </div>
+
+    <!-- Cabinet Controls Styling (Cabinet Deck Footer) -->
+    <div class="cabinet-deck">
+      <div class="arcade-joysticks">
+        <div class="joystick-left"><div class="ball cyan-ball"></div></div>
+        <div class="joystick-right"><div class="ball magenta-ball"></div></div>
+      </div>
+      <div class="arcade-buttons">
+        <div class="control-btn btn-red"></div>
+        <div class="control-btn btn-yellow"></div>
+        <div class="control-btn btn-blue"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Javascript Modules -->
+  <script src="laneSwitcher.js"></script>
+  <script src="wordDefender.js"></script>
+  <script src="cyberDrift.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
