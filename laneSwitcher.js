@@ -30,14 +30,14 @@ class LaneSwitcherGame {
     this.spinTimeRemaining = 0; // ms
 
     // Immunity after hit
-    this.immunityDuration = 1500; // 1.5 seconds
+    this.immunityDuration = 1000; // shorter invulnerability period // 1.5 seconds
     this.immunityTimeRemaining = 0; // ms
 
     // Obstacles
     this.obstacles = [];
     this.obstacleSpawnTimer = 0;
-    this.obstacleSpawnInterval = 3200; // ms
-    this.baseSpeed = 0.08; // Speed factor
+    this.obstacleSpawnInterval = 2500; // ms (faster obstacle spawn)
+    this.baseSpeed = 0.10; // Slightly faster base speed
     this.currentSpeed = 0.08;
 
     // Typing system
@@ -119,8 +119,8 @@ class LaneSwitcherGame {
       this.baseSpeed = 0.22;
       this.obstacleSpawnInterval = 1400;
     } else {
-      this.baseSpeed = 0.08;
-      this.obstacleSpawnInterval = 3200;
+      this.baseSpeed = 0.10; // tougher normal difficulty
+      this.obstacleSpawnInterval = 2500; // tougher normal difficulty
     }
     this.currentSpeed = this.baseSpeed;
     this.obstacleSpawnTimer = 0;
@@ -173,7 +173,7 @@ class LaneSwitcherGame {
         this.updateHUD();
 
         // Dynamic speed scaling: slowly accelerate as time goes on
-        this.currentSpeed = this.baseSpeed + (this.gameTimeElapsed * 0.0001);
+        this.currentSpeed = this.baseSpeed + (this.gameTimeElapsed * 0.0002); // accelerate faster over time
 
         if (this.timer <= 0) {
           this.endGame(true); // Victory!
@@ -407,7 +407,8 @@ class LaneSwitcherGame {
       if (rand < 0.15) maxToSpawn = 3;
       else if (rand < 0.55) maxToSpawn = 2;
     } else { // normal
-      if (rand < 0.4) maxToSpawn = 2; // 40% chance of spawning 2 boxes
+      if (rand < 0.6) maxToSpawn = 2; // 60% chance of spawning 2 boxes
+          else if (rand < 0.8) maxToSpawn = 3; // 20% chance of spawning 3 boxes
     }
 
     // Ensure we do not block all 5 lanes (max 3 boxes at once)
