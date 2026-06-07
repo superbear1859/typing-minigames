@@ -347,7 +347,9 @@ class WordDefenderGame {
     const limitY = this.canvas.height * 0.8; // Shield barrier Y
     for (let i = this.fallingWords.length - 1; i >= 0; i--) {
       const word = this.fallingWords[i];
-      word.y += this.wordSpeed * dt;
+      if (!word.isDead) {
+        word.y += this.wordSpeed * dt;
+      }
 
       // Crosses shield barrier
       if (word.y >= limitY) {

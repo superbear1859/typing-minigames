@@ -25,6 +25,7 @@ class NeonArcadeApp {
     this.laneSwitcher = null;
     this.wordDefender = null;
     this.cyberDrift = null;
+    this.cyberCore = null;
     this.activeGame = null;
 
     // Initialize systems
@@ -53,6 +54,9 @@ class NeonArcadeApp {
     if (typeof CyberDriftGame !== 'undefined') {
       this.cyberDrift = new CyberDriftGame(this);
     }
+    if (typeof CyberCoreGame !== 'undefined') {
+      this.cyberCore = new CyberCoreGame(this);
+    }
 
     // Auto-boot game from URL query parameter (for headless verification)
     const urlParams = new URLSearchParams(window.location.search);
@@ -72,6 +76,11 @@ class NeonArcadeApp {
         const btn = document.getElementById('btn-play-cyber-drift');
         if (btn) btn.click();
       }, 200);
+    } else if (bootGame === 'cyberCore') {
+      setTimeout(() => {
+        const btn = document.getElementById('btn-play-cyber-core');
+        if (btn) btn.click();
+      }, 200);
     }
   }
 
@@ -87,6 +96,7 @@ class NeonArcadeApp {
       // Clean up layout overrides
       document.getElementById('game-view').classList.remove('mode-word-defender');
       document.getElementById('game-view').classList.remove('mode-cyber-drift');
+      document.getElementById('game-view').classList.remove('mode-cyber-core');
       
       this.activeGame = this.laneSwitcher;
       this.showView('game');
@@ -102,6 +112,7 @@ class NeonArcadeApp {
       
       // Set layout overrides
       document.getElementById('game-view').classList.remove('mode-cyber-drift');
+      document.getElementById('game-view').classList.remove('mode-cyber-core');
       document.getElementById('game-view').classList.add('mode-word-defender');
       
       this.activeGame = this.wordDefender;
@@ -120,12 +131,33 @@ class NeonArcadeApp {
         
         // Set layout overrides
         document.getElementById('game-view').classList.remove('mode-word-defender');
+        document.getElementById('game-view').classList.remove('mode-cyber-core');
         document.getElementById('game-view').classList.add('mode-cyber-drift');
         
         this.activeGame = this.cyberDrift;
         this.showView('game');
         if (this.cyberDrift) {
           this.cyberDrift.reset();
+        }
+      });
+    }
+
+    // Dashboard actions - Cyber Core
+    const btnPlayCyberCore = document.getElementById('btn-play-cyber-core');
+    if (btnPlayCyberCore) {
+      btnPlayCyberCore.addEventListener('click', () => {
+        this.initAudioContext();
+        this.playSynthSound('gameStart');
+        
+        // Set layout overrides
+        document.getElementById('game-view').classList.remove('mode-word-defender');
+        document.getElementById('game-view').classList.remove('mode-cyber-drift');
+        document.getElementById('game-view').classList.add('mode-cyber-core');
+        
+        this.activeGame = this.cyberCore;
+        this.showView('game');
+        if (this.cyberCore) {
+          this.cyberCore.reset();
         }
       });
     }
@@ -263,6 +295,8 @@ class NeonArcadeApp {
       gameName = "WORD_DEFENDER";
     } else if (this.activeGame === this.cyberDrift) {
       gameName = "CYBER_DRIFT";
+    } else if (this.activeGame === this.cyberCore) {
+      gameName = "CYBER_CORE";
     }
 
     const newRecord = {
@@ -313,6 +347,14 @@ class NeonArcadeApp {
       cdScoreEl.innerText = String(cdHighest).padStart(4, '0');
     }
 
+    // Cyber Core high score
+    const ccScores = scores.filter(s => s.game === "CYBER_CORE");
+    const ccHighest = ccScores.length > 0 ? ccScores[0].score : 0;
+    const ccScoreEl = document.getElementById('dash-high-score-cyber-core');
+    if (ccScoreEl) {
+      ccScoreEl.innerText = String(ccHighest).padStart(4, '0');
+    }
+
     // Aggregate stats
     const totalRuns = localStorage.getItem('neonGrid_totalRuns') || 0;
     const peakWpm = localStorage.getItem('neonGrid_peakWpm') || 0;
@@ -345,6 +387,9 @@ class NeonArcadeApp {
       } else if (isCD) {
         gameLabel = "CYBER DRIFT";
         gameColor = "yellow";
+      } else if (item.game === "CYBER_CORE") {
+        gameLabel = "CYBER CORE";
+        gameColor = "purple";
       }
       
       row.innerHTML = `
