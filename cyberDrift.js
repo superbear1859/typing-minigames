@@ -164,7 +164,7 @@ class CyberDriftGame {
           <span class="action-desc">→ Complete 5 consecutive gates to activate TURBO BOOST!</span>
         </div>
       </div>
-      <p class="warning-text">Survival window: 5 minutes. Wall impacts will disrupt shields!</p>
+      <p class="warning-text">${this.app.sixSevenMode ? 'SIX SEVEN MODE ACTIVE: Vocabulary limited to "six seven", "four one", "seven eleven".' : 'Survival window: 5 minutes. Wall impacts will disrupt shields!'}</p>
     `;
 
     this.updateOverlayTargetHint('start');
@@ -464,7 +464,9 @@ class CyberDriftGame {
     if (this.canvas.width < 100 || this.canvas.height < 100) return;
 
     let wordList = [];
-    if (this.gameTimeElapsed > 90) {
+    if (this.app.sixSevenMode) {
+      wordList = ['six seven', 'four one', 'seven eleven'];
+    } else if (this.gameTimeElapsed > 90) {
       const rand = Math.random();
       if (rand < 0.3) wordList = this.words3_4;
       else if (rand < 0.65) wordList = this.words5_6;
@@ -933,7 +935,7 @@ class CyberDriftGame {
 
     // Standard playing gameplay keys
     if (this.gameState === 'playing') {
-      if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      if (key.length === 1 && /[a-zA-Z ]/.test(key)) {
         this.processKeystroke(key.toLowerCase());
       }
     }

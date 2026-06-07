@@ -107,6 +107,12 @@ class LaneSwitcherGame {
     this.totalKeystrokes = 0;
     this.gameTimeElapsed = 0;
 
+    if (this.app.sixSevenMode) {
+      this.commands = ['6 7', '4 1', '7 11'];
+    } else {
+      this.commands = ['left', 'right', 'spin'];
+    }
+
     // Clear interval if any
     if (this.timerInterval) clearInterval(this.timerInterval);
 
@@ -135,16 +141,20 @@ class LaneSwitcherGame {
     this.toggleOverlay('game-paused-overlay', false);
 
     // Setup start overlay instructions dynamically for Lane Switcher
+    const leftCmd = this.app.sixSevenMode ? '6 7' : 'left';
+    const rightCmd = this.app.sixSevenMode ? '4 1' : 'right';
+    const spinCmd = this.app.sixSevenMode ? '7 11' : 'spin';
+
     document.getElementById('start-overlay-title').innerText = "LANE SWITCHER";
     document.getElementById('start-overlay-title').className = "flicker glow-text-cyan";
     document.getElementById('start-overlay-instructions').innerHTML = `
-      <p class="instruction-line"><span class="highlight">TYPE THE WORDS</span> to navigate the car:</p>
+      <p class="instruction-line"><span class="highlight">TYPE THE COMMANDS</span> to navigate the car:</p>
       <div class="control-legend">
-        <div class="control-key"><span>left</span> <span class="action-desc">→ Switch left 1 lane</span></div>
-        <div class="control-key"><span>right</span> <span class="action-desc">→ Switch right 1 lane</span></div>
-        <div class="control-key"><span>spin</span> <span class="action-desc">→ 0.5s Invincibility / Destroy obstacles</span></div>
+        <div class="control-key"><span>${leftCmd}</span> <span class="action-desc">→ Switch left 1 lane</span></div>
+        <div class="control-key"><span>${rightCmd}</span> <span class="action-desc">→ Switch right 1 lane</span></div>
+        <div class="control-key"><span>${spinCmd}</span> <span class="action-desc">→ 0.5s Invincibility / Destroy obstacles</span></div>
       </div>
-      <p class="warning-text">Survival window: 5 minutes. Do not crash into orange blocks!</p>
+      <p class="warning-text">${this.app.sixSevenMode ? 'SIX SEVEN MODE ACTIVE: Commands restricted to digits "6 7", "4 1", "7 11".' : 'Survival window: 5 minutes. Do not crash into orange blocks!'}</p>
     `;
 
     // Setup helper hints
@@ -821,8 +831,8 @@ class LaneSwitcherGame {
       if (this.cooldownRemaining > 0) {
         return; // block typing during cooldown
       }
-      // Only process printable alphabet keys
-      if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      // Only process printable alphabet, digits, and space keys
+      if (key.length === 1 && /[a-zA-Z0-9 ]/.test(key)) {
         this.processKeystroke(key.toLowerCase());
       }
     }
@@ -862,21 +872,21 @@ class LaneSwitcherGame {
     this.cooldownRemaining = 600; // 600ms cooldown (down from 1.5s to allow fast maneuvering)
     this.updateTypingUI();
 
-    if (cmd === 'left') {
+    if (cmd === 'left' || cmd === 'six seven' || cmd === '6 7') {
       if (this.playerLane > 0) {
         this.playerLane--;
         this.app.playSynthSound('click');
       } else {
         this.app.playSynthSound('fail'); // wall bounce warning
       }
-    } else if (cmd === 'right') {
+    } else if (cmd === 'right' || cmd === 'four one' || cmd === '4 1') {
       if (this.playerLane < this.maxLanes - 1) {
         this.playerLane++;
         this.app.playSynthSound('click');
       } else {
         this.app.playSynthSound('fail');
       }
-    } else if (cmd === 'spin') {
+    } else if (cmd === 'spin' || cmd === 'seven eleven' || cmd === '7 11') {
       this.spinTimeRemaining = this.spinDuration;
       this.app.playSynthSound('spin');
 
@@ -984,8 +994,9 @@ class LaneSwitcherGame {
     }
 
     // Highlight command dictionary words letters
-    this.commands.forEach(cmd => {
-      const el = document.getElementById(`cmd-${cmd}`);
+    const htmlIds = ['left', 'right', 'spin'];
+    this.commands.forEach((cmd, idx) => {
+      const el = document.getElementById(`cmd-${htmlIds[idx]}`);
       if (!el) return;
 
       const typedEl = el.querySelector('.highlight-typed');
