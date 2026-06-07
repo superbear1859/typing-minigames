@@ -135,7 +135,7 @@ class CyberCoreGame {
           <span class="action-desc">→ Prevent threats from penetrating the core's rotating orbit ring</span>
         </div>
       </div>
-      <p class="warning-text">Survival window: 5 minutes. Protect core system integrity at all costs!</p>
+      <p class="warning-text">${this.app.sixSevenMode ? 'SIX SEVEN MODE ACTIVE: Vocabulary limited to "six seven", "four one", "seven eleven".' : 'Survival window: 5 minutes. Protect core system integrity at all costs!'}</p>
     `;
 
     this.updateOverlayTargetHint('start');
@@ -372,7 +372,9 @@ class CyberCoreGame {
 
     // Pick word bank based on game time
     let wordList = [];
-    if (this.gameTimeElapsed > 90) {
+    if (this.app.sixSevenMode) {
+      wordList = ['six seven', 'four one', 'seven eleven'];
+    } else if (this.gameTimeElapsed > 90) {
       const rand = Math.random();
       if (rand < 0.3) wordList = this.words3_4;
       else if (rand < 0.7) wordList = this.words5_6;
@@ -861,7 +863,7 @@ class CyberCoreGame {
 
     // Gameplay keys
     if (this.gameState === 'playing') {
-      if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      if (key.length === 1 && /[a-zA-Z ]/.test(key)) {
         this.processKeystroke(key.toLowerCase());
       }
     }
@@ -1104,8 +1106,9 @@ class CyberCoreGame {
     const dictionary = document.querySelector('.cmd-dictionary');
     if (dictionary) {
       // Re-enable/reset commands for lane switcher fallback
-      this.app.laneSwitcher.commands.forEach(cmd => {
-        const el = document.getElementById(`cmd-${cmd}`);
+      const htmlIds = ['left', 'right', 'spin'];
+      this.app.laneSwitcher.commands.forEach((cmd, idx) => {
+        const el = document.getElementById(`cmd-${htmlIds[idx]}`);
         if (el) {
           el.classList.remove('active-prefix');
           el.querySelector('.highlight-typed').innerText = "";

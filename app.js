@@ -9,6 +9,7 @@ class NeonArcadeApp {
     this.soundEnabled = true;
     this.particlesEnabled = true;
     this.difficulty = 'normal';
+    this.sixSevenMode = false;
     
     // Web Audio System
     this.audioCtx = null;
@@ -222,6 +223,12 @@ class NeonArcadeApp {
       this.playSynthSound('click');
     });
 
+    const sixSevenToggle = document.getElementById('setting-sixseven-toggle');
+    sixSevenToggle.addEventListener('change', (e) => {
+      this.sixSevenMode = e.target.checked;
+      this.playSynthSound('click');
+    });
+
     // Purge records button
     document.getElementById('btn-purge-scores').addEventListener('click', () => {
       if (confirm("PURGE ALL FLIGHT LOG RECORDS? THIS CANNOT BE UNDONE.")) {
@@ -270,12 +277,18 @@ class NeonArcadeApp {
     const savedDiff = localStorage.getItem('neonGrid_difficulty');
     this.difficulty = savedDiff !== null ? savedDiff : 'normal';
     document.getElementById('setting-difficulty').value = this.difficulty;
+
+    // Six Seven mode settings
+    const savedSixSeven = localStorage.getItem('neonGrid_sixSeven');
+    this.sixSevenMode = savedSixSeven !== null ? savedSixSeven === 'true' : false;
+    document.getElementById('setting-sixseven-toggle').checked = this.sixSevenMode;
   }
 
   saveSettings() {
     localStorage.setItem('neonGrid_sound', this.soundEnabled);
     localStorage.setItem('neonGrid_particles', this.particlesEnabled);
     localStorage.setItem('neonGrid_difficulty', this.difficulty);
+    localStorage.setItem('neonGrid_sixSeven', this.sixSevenMode);
   }
 
   getHighScores() {
@@ -362,6 +375,29 @@ class NeonArcadeApp {
 
     document.getElementById('stat-total-runs').innerText = totalRuns;
     document.getElementById('stat-peak-wpm').innerText = `${peakWpm} WPM`;
+
+    // Update game card descriptions dynamically based on Six Seven Mode
+    const descLS = this.sixSevenMode 
+      ? 'Navigate a 5-lane hyper-highway using numeric inputs. Dodge obstacles by typing "6 7" or "4 1". Type "7 11" to activate a 0.5s overdrive shield.'
+      : 'Navigate a 5-lane hyper-highway. Dodge obstacles by typing "left" or "right". Destroy barricades by typing "spin" to enter a 0.5s overdrive.';
+    const descWD = this.sixSevenMode
+      ? 'A retro space shooter. Words descend from the sky; type only "six seven", "four one", and "seven eleven" before shields breach.'
+      : 'A retro space shooter. Words descend from the sky; type them down before they breach your thermal shields.';
+    const descCD = this.sixSevenMode
+      ? 'Speed-run test of pure typing velocity. Negotiate highway gates by typing only "six seven", "four one", and "seven eleven" to activate boost mode.'
+      : 'Speed-run test of pure typing velocity. Drifting down a winding highway; type prompt words to negotiate drift gates and activate boost mode.';
+    const descCC = this.sixSevenMode
+      ? 'Aim and fire orbital turrets at network vulnerabilities. Threats converge from 360 degrees; defend the core by typing only "six seven", "four one", and "seven eleven".'
+      : 'Aim and fire orbital turrets at network vulnerabilities. Threats converge on the core from 360 degrees; type words to fire energy beams before they hit rotating shields.';
+
+    const elLS = document.querySelector('#card-lane-switcher .game-desc');
+    if (elLS) elLS.innerText = descLS;
+    const elWD = document.querySelector('#card-word-defender .game-desc');
+    if (elWD) elWD.innerText = descWD;
+    const elCD = document.querySelector('#card-cyber-drift .game-desc');
+    if (elCD) elCD.innerText = descCD;
+    const elCC = document.querySelector('#card-cyber-core .game-desc');
+    if (elCC) elCC.innerText = descCC;
   }
 
   renderHighScores() {
@@ -665,66 +701,88 @@ class NeonArcadeApp {
     const tipPanel = document.querySelector('.tip-panel');
     if (!tipPanel) return;
 
-    // Define info blocks for each game
-    const gameInfos = {
-      'card-lane-switcher': `
-        <h3 class="panel-title">// TRANSMISSION: LANE_SWITCHER</h3>
-        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
-          <p class="tip-text" style="color: var(--color-neon-cyan); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Navigate a 5-lane highway and dodge orange barricades.</p>
-          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
-          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
-            <li>• <span style="color: var(--color-neon-cyan)">left</span> - Shift Left 1 Lane</li>
-            <li>• <span style="color: var(--color-neon-cyan)">right</span> - Shift Right 1 Lane</li>
-            <li>• <span style="color: var(--color-neon-magenta)">spin</span> - Overdrive Spin (0.5s Shield)</li>
-          </ul>
-          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Typing errors trigger a 500ms input lockout. Focus on accuracy over raw speed!"</p>
-        </div>
-      `,
-      'card-word-defender': `
-        <h3 class="panel-title">// TRANSMISSION: WORD_DEFENDER</h3>
-        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
-          <p class="tip-text" style="color: var(--color-neon-magenta); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Shoot down incoming space code words before shields breach.</p>
-          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
-          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
-            <li>• Type letters of descending words to lock lasers.</li>
-            <li>• Complete word spelling to launch interceptor missiles.</li>
-          </ul>
-          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Completed words freeze in place while missiles are in flight. Target low-altitude threats first!"</p>
-        </div>
-      `,
-      'card-cyber-drift': `
-        <h3 class="panel-title">// TRANSMISSION: CYBER_DRIFT</h3>
-        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
-          <p class="tip-text" style="color: var(--color-neon-yellow); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Drift through highway gates at high velocity.</p>
-          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
-          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
-            <li>• Type first letter of gate to lock track route.</li>
-            <li>• Type full word to align vehicle chassis.</li>
-          </ul>
-          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Successfully drifting 5 gates consecutively activates dual exhaust TURBO BOOST for double points!"</p>
-        </div>
-      `,
-      'card-cyber-core': `
-        <h3 class="panel-title">// TRANSMISSION: CYBER_CORE</h3>
-        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
-          <p class="tip-text" style="color: var(--color-neon-purple); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Protect the generator core from 360-degree convergence.</p>
-          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
-          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
-            <li>• Type first letter of node to aim plasma turret.</li>
-            <li>• Complete word spelling to discharge instant energy lasers.</li>
-          </ul>
-          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Watch core's revolving shields. They absorb node collisions but let laser beams pass outwards!"</p>
-        </div>
-      `
-    };
-
     const defaultHtml = tipPanel.innerHTML;
 
-    Object.keys(gameInfos).forEach(id => {
+    const getGameInfo = (id) => {
+      if (id === 'card-lane-switcher') {
+        const leftCmd = this.sixSevenMode ? '6 7' : 'left';
+        const rightCmd = this.sixSevenMode ? '4 1' : 'right';
+        const spinCmd = this.sixSevenMode ? '7 11' : 'spin';
+        const objective = this.sixSevenMode
+          ? 'Navigate a 5-lane highway using numeric inputs. Dodge obstacles by typing commands.'
+          : 'Navigate a 5-lane highway and dodge orange barricades.';
+        return `
+          <h3 class="panel-title">// TRANSMISSION: LANE_SWITCHER</h3>
+          <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+            <p class="tip-text" style="color: var(--color-neon-cyan); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> ${objective}</p>
+            <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+            <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+              <li>• <span style="color: var(--color-neon-cyan)">${leftCmd}</span> - Shift Left 1 Lane</li>
+              <li>• <span style="color: var(--color-neon-cyan)">${rightCmd}</span> - Shift Right 1 Lane</li>
+              <li>• <span style="color: var(--color-neon-magenta)">${spinCmd}</span> - Overdrive Spin (0.5s Shield)</li>
+            </ul>
+            <p class="tip-text" style="font-style: italic;">"PRO-TIP: Typing errors trigger a 500ms input lockout. Focus on accuracy over raw speed!"</p>
+          </div>
+        `;
+      } else if (id === 'card-word-defender') {
+        const desc = this.sixSevenMode 
+          ? "OBJECTIVE: Shoot down incoming space code nodes by typing only 'six seven', 'four one', and 'seven eleven'."
+          : "OBJECTIVE: Shoot down incoming space code words before shields breach.";
+        return `
+          <h3 class="panel-title">// TRANSMISSION: WORD_DEFENDER</h3>
+          <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+            <p class="tip-text" style="color: var(--color-neon-magenta); margin-bottom: 8px;"><strong>${desc}</strong></p>
+            <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+            <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+              <li>• Type letters of descending words to lock lasers.</li>
+              <li>• Complete word spelling to launch interceptor missiles.</li>
+            </ul>
+            <p class="tip-text" style="font-style: italic;">"PRO-TIP: Completed words freeze in place while missiles are in flight. Target low-altitude threats first!"</p>
+          </div>
+        `;
+      } else if (id === 'card-cyber-drift') {
+        const desc = this.sixSevenMode
+          ? "OBJECTIVE: Drift through highway gates by typing only 'six seven', 'four one', and 'seven eleven'."
+          : "OBJECTIVE: Drift through highway gates at high velocity.";
+        return `
+          <h3 class="panel-title">// TRANSMISSION: CYBER_DRIFT</h3>
+          <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+            <p class="tip-text" style="color: var(--color-neon-yellow); margin-bottom: 8px;"><strong>${desc}</strong></p>
+            <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+            <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+              <li>• Type first letter of gate to lock track route.</li>
+              <li>• Type full word to align vehicle chassis.</li>
+            </ul>
+            <p class="tip-text" style="font-style: italic;">"PRO-TIP: Successfully drifting 5 gates consecutively activates dual exhaust TURBO BOOST for double points!"</p>
+          </div>
+        `;
+      } else if (id === 'card-cyber-core') {
+        const desc = this.sixSevenMode
+          ? "OBJECTIVE: Protect generator core by typing only 'six seven', 'four one', and 'seven eleven'."
+          : "OBJECTIVE: Protect the generator core from 360-degree convergence.";
+        return `
+          <h3 class="panel-title">// TRANSMISSION: CYBER_CORE</h3>
+          <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+            <p class="tip-text" style="color: var(--color-neon-purple); margin-bottom: 8px;"><strong>${desc}</strong></p>
+            <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+            <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+              <li>• Type first letter of node to aim plasma turret.</li>
+              <li>• Complete word spelling to discharge instant energy lasers.</li>
+            </ul>
+            <p class="tip-text" style="font-style: italic;">"PRO-TIP: Watch core's revolving shields. They absorb node collisions but let laser beams pass outwards!"</p>
+          </div>
+        `;
+      }
+      return '';
+    };
+
+    const cardIds = ['card-lane-switcher', 'card-word-defender', 'card-cyber-drift', 'card-cyber-core'];
+
+    cardIds.forEach(id => {
       const card = document.getElementById(id);
       if (card) {
         card.addEventListener('mouseenter', () => {
-          tipPanel.innerHTML = gameInfos[id];
+          tipPanel.innerHTML = getGameInfo(id);
           this.playSynthSound('click');
           
           // Smoothly scroll the card fully into view if it is cut off

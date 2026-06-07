@@ -138,7 +138,7 @@ class WordDefenderGame {
           <span class="action-desc">→ Don't let words breach the bottom shield boundary!</span>
         </div>
       </div>
-      <p class="warning-text">Survival window: 5 minutes. Space Core under threat!</p>
+      <p class="warning-text">${this.app.sixSevenMode ? 'SIX SEVEN MODE ACTIVE: Vocabulary limited to "six seven", "four one", "seven eleven".' : 'Survival window: 5 minutes. Space Core under threat!'}</p>
     `;
 
     this.updateOverlayTargetHint('start');
@@ -381,7 +381,9 @@ class WordDefenderGame {
     if (this.canvas.width < 100 || this.canvas.height < 100) return;
     // Pick word bank depending on game time (longer words later)
     let wordList = [];
-    if (this.gameTimeElapsed > 90) { // after 1.5 mins
+    if (this.app.sixSevenMode) {
+      wordList = ['six seven', 'four one', 'seven eleven'];
+    } else if (this.gameTimeElapsed > 90) { // after 1.5 mins
       const rand = Math.random();
       if (rand < 0.3) wordList = this.words3_4;
       else if (rand < 0.75) wordList = this.words5_6;
@@ -748,7 +750,7 @@ class WordDefenderGame {
 
     // Gameplay input parsing
     if (this.gameState === 'playing') {
-      if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      if (key.length === 1 && /[a-zA-Z ]/.test(key)) {
         this.processKeystroke(key.toLowerCase());
       }
     }
