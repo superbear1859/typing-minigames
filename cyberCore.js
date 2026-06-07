@@ -15,7 +15,12 @@ class CyberCoreGame {
     this.timer = 300; // 5 minutes
     this.timerInterval = null;
     this.score = 0;
-    this.shields = 3;
+    this.shields = 100; // Shield integrity percentage (0-100%)
+    this.maxShields = 100;
+    this.charge = 0; // Overcharge percentage (0-100%)
+    this.jamTimer = 0; // Key lock duration in ms
+    this.burstTypedLength = 0; // spelling progress for ultimate
+    this.purgeAnimationTimer = 0; // screen clear wave duration in ms
     this.lastFrameTime = 0;
 
     // Word dictionaries
@@ -69,7 +74,11 @@ class CyberCoreGame {
     this.gameState = 'start';
     this.timer = 300;
     this.score = 0;
-    this.shields = 3;
+    this.shields = 100;
+    this.charge = 0;
+    this.jamTimer = 0;
+    this.burstTypedLength = 0;
+    this.purgeAnimationTimer = 0;
     this.threats = [];
     this.activeLasers = [];
     this.particles = [];
@@ -212,12 +221,13 @@ class CyberCoreGame {
 
     const timeStr = this.getFormattedTime(300 - this.timer);
     const wpm = this.calculateWPM();
+    const finalScore = Math.floor(this.score);
 
-    document.getElementById('final-score-val').innerText = this.score;
+    document.getElementById('final-score-val').innerText = finalScore;
     document.getElementById('final-time-val').innerText = timeStr;
     document.getElementById('final-wpm-val').innerText = `${wpm} words per minute`;
 
-    this.app.saveHighScore(this.score, wpm, timeStr);
+    this.app.saveHighScore(finalScore, wpm, timeStr);
     this.toggleOverlay('game-over-overlay', true);
   }
 
@@ -247,6 +257,16 @@ class CyberCoreGame {
   update(dt) {
     if (this.app.activeGame !== this) return;
 
+    // Decr jam lockout timer
+    if (this.jamTimer > 0) {
+      this.jamTimer = Math.max(0, this.jamTimer - dt);
+    }
+
+    // Decr purge animation timer
+    if (this.purgeAnimationTimer > 0) {
+      this.purgeAnimationTimer = Math.max(0, this.purgeAnimationTimer - dt);
+    }
+
     // Rotate defensive rings
     const rotationFactor = this.gameState === 'playing' ? 0.001 : 0.0002;
     this.shieldRotation = (this.shieldRotation + rotationFactor * dt) % (Math.PI * 2);
@@ -273,7 +293,24 @@ class CyberCoreGame {
 
     for (let i = this.threats.length - 1; i >= 0; i--) {
       const threat = this.threats[i];
-      threat.distance -= this.threatSpeed * dt;
+      
+      // Drainer (hacker) node behavior: stop and tether when close
+      if (threat.type === 'drainer' && threat.distance <= 180) {
+        threat.isTethered = true;
+        // Drain shields (approx 5% per second)
+        this.shields = Math.max(0, this.shields - 0.005 * dt);
+        // Drain score (approx 2 points per second)
+        this.score = Math.max(0, this.score - 0.002 * dt);
+        this.updateHUD();
+        
+        if (this.shields <= 0) {
+          this.endGame(false);
+          return;
+        }
+      } else {
+        threat.isTethered = false;
+        threat.distance -= this.threatSpeed * (threat.speedMultiplier || 1.0) * dt;
+      }
 
       // Calculate coordinates
       threat.x = cx + Math.cos(threat.angle) * threat.distance;
@@ -289,15 +326,35 @@ class CyberCoreGame {
           this.updateTypingUI();
         }
 
-        // Damage calculation
-        this.shields--;
+        // Damage calculations
+        let damage = 15;
+        let explosionColor = 'magenta';
+        
+        if (threat.type === 'emp') {
+          damage = 15;
+          this.jamTimer = 2500; // 2.5s input jam lockout
+          explosionColor = 'yellow';
+          // Clear current target lock as systems reboot
+          this.targetedThreat = null;
+          this.currentInput = "";
+          this.updateTypingUI();
+        } else if (threat.type === 'drainer') {
+          damage = 20;
+          explosionColor = 'magenta';
+        } else if (threat.type === 'recovery') {
+          damage = 10; // Healing packets still disrupt when colliding passively
+          explosionColor = 'cyan';
+        }
+
+        this.shields = Math.max(0, this.shields - damage);
         this.triggerScreenShake();
-        this.spawnExplosion(threat.x, threat.y, 'magenta');
+        this.spawnExplosion(threat.x, threat.y, explosionColor);
         this.app.playSynthSound('crash');
         this.updateHUD();
 
         if (this.shields <= 0) {
           this.endGame(false);
+          return;
         }
       }
     }
@@ -337,14 +394,41 @@ class CyberCoreGame {
     const cx = this.canvas.width / 2;
     const cy = this.canvas.height / 2;
 
+    // Determine type
+    const randType = Math.random();
+    let type = 'standard';
+    let labelPrefix = '';
+    let color = Math.random() < 0.5 ? this.app.themeColors.cyan : this.app.themeColors.magenta;
+    let speedMultiplier = 1.0;
+
+    if (randType < 0.15) {
+      type = 'emp';
+      labelPrefix = '[EMP] ';
+      color = this.app.themeColors.yellow;
+      speedMultiplier = 1.6;
+    } else if (randType < 0.27) {
+      type = 'drainer';
+      labelPrefix = '[HACK] ';
+      color = this.app.themeColors.purple;
+      speedMultiplier = 1.0;
+    } else if (randType < 0.35) {
+      type = 'recovery';
+      labelPrefix = '[HEAL] ';
+      color = '#00ff66'; // Neon green
+      speedMultiplier = 0.8;
+    }
+
     this.threats.push({
       text: text,
+      labelPrefix: labelPrefix,
+      type: type,
       angle: angle,
       distance: spawnDistance,
       x: cx + Math.cos(angle) * spawnDistance,
       y: cy + Math.sin(angle) * spawnDistance,
       typedLength: 0,
-      color: Math.random() < 0.5 ? this.app.themeColors.cyan : this.app.themeColors.magenta
+      color: color,
+      speedMultiplier: speedMultiplier
     });
   }
 
@@ -421,8 +505,56 @@ class CyberCoreGame {
     }
     this.ctx.restore();
 
+    // Draw Hacker tethers
+    this.threats.forEach(threat => {
+      if (threat.isTethered) {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(157, 0, 255, 0.6)';
+        this.ctx.shadowBlur = 10;
+        this.ctx.shadowColor = this.app.themeColors.purple;
+        this.ctx.lineWidth = 2 + Math.sin(Date.now() * 0.05) * 1;
+        this.ctx.setLineDash([4, 2 + Math.random() * 4]); // noise/glitch effect
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(threat.x, threat.y);
+        this.ctx.stroke();
+        this.ctx.restore();
+      }
+    });
+
     // Draw active laser beams
     this.drawLasers();
+
+    // Draw Neural Purge expanding shockwave
+    if (this.purgeAnimationTimer > 0) {
+      this.ctx.save();
+      const progress = 1 - (this.purgeAnimationTimer / 600);
+      const purgeMaxRadius = Math.max(this.canvas.width, this.canvas.height) * 0.75;
+      const currentRadius = progress * purgeMaxRadius;
+
+      this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.85)';
+      this.ctx.shadowBlur = 35;
+      this.ctx.shadowColor = this.app.themeColors.cyan;
+      this.ctx.lineWidth = 16 * (1 - progress);
+
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, currentRadius, 0, Math.PI * 2);
+      this.ctx.stroke();
+      
+      // Secondary purge shockwave ring
+      if (currentRadius > 40) {
+        this.ctx.strokeStyle = 'rgba(255, 0, 91, 0.55)';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = this.app.themeColors.magenta;
+        this.ctx.lineWidth = 6 * (1 - progress);
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, currentRadius - 30, 0, Math.PI * 2);
+        this.ctx.stroke();
+      }
+
+      this.ctx.restore();
+    }
 
     // Draw particles
     this.drawParticles();
@@ -432,6 +564,26 @@ class CyberCoreGame {
 
     // Draw core turret & rotating shield segments
     this.drawCore();
+
+    // Draw system jam warning overlay
+    if (this.jamTimer > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = 'rgba(255, 196, 0, 0.08)';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // Flash "JAMMED" alert
+      if (Math.floor(Date.now() / 250) % 2 === 0) {
+        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = '#ffc400';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#ffc400';
+        this.ctx.font = "bold 28px 'Share Tech Mono', monospace";
+        this.ctx.fillText("!!! TRANSCEIVER JAMMED !!!", cx, cy - 120);
+        this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
+        this.ctx.fillText("ATTEMPTING NEURAL DECODER REBOOT...", cx, cy - 90);
+      }
+      this.ctx.restore();
+    }
   }
 
   drawLasers() {
@@ -472,9 +624,6 @@ class CyberCoreGame {
   }
 
   drawThreats() {
-    this.ctx.textAlign = 'center';
-    this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
-
     this.threats.forEach(threat => {
       const isTargeted = this.targetedThreat === threat;
 
@@ -505,9 +654,14 @@ class CyberCoreGame {
       this.ctx.translate(0, 32);
       this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
       
-      const textWidth = this.ctx.measureText(threat.text).width + 12;
+      const prefix = threat.labelPrefix || '';
+      const txt = threat.text;
+      const fullText = prefix + txt;
+      const typedLen = threat.typedLength;
+
+      const textWidth = this.ctx.measureText(fullText).width + 12;
       this.ctx.fillStyle = isTargeted ? 'rgba(0, 240, 255, 0.1)' : 'rgba(0, 0, 0, 0.5)';
-      this.ctx.strokeStyle = isTargeted ? this.app.themeColors.cyan : 'rgba(255, 255, 255, 0.08)';
+      this.ctx.strokeStyle = isTargeted ? (threat.color || this.app.themeColors.cyan) : 'rgba(255, 255, 255, 0.08)';
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
       this.ctx.rect(-textWidth / 2, -13, textWidth, 20);
@@ -515,32 +669,41 @@ class CyberCoreGame {
       this.ctx.stroke();
 
       // Character rendering split logic
-      const txt = threat.text;
-      const typedLen = threat.typedLength;
-
       this.ctx.shadowBlur = isTargeted ? 8 : 4;
+      const totalWidth = this.ctx.measureText(fullText).width;
+      const startX = -totalWidth / 2;
+
+      // Draw prefix if exists
+      if (prefix) {
+        this.ctx.fillStyle = threat.color;
+        this.ctx.shadowColor = threat.color;
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(prefix, startX, 2);
+      }
+
+      const prefixWidth = prefix ? this.ctx.measureText(prefix).width : 0;
+
       if (typedLen > 0) {
         const typedTxt = txt.substring(0, typedLen);
         const untypedTxt = txt.substring(typedLen);
 
         const typedWidth = this.ctx.measureText(typedTxt).width;
-        const totalWidth = this.ctx.measureText(txt).width;
-        const startX = -totalWidth / 2;
 
         // Highlight typed in cyan
         this.ctx.fillStyle = this.app.themeColors.cyan;
         this.ctx.shadowColor = this.app.themeColors.cyan;
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(typedTxt, startX, 2);
+        this.ctx.fillText(typedTxt, startX + prefixWidth, 2);
 
-        // Highlight remaining in original color
+        // Highlight remaining in threat color (or white if locked)
         this.ctx.fillStyle = isTargeted ? '#ffffff' : threat.color;
         this.ctx.shadowColor = isTargeted ? this.app.themeColors.cyan : threat.color;
-        this.ctx.fillText(untypedTxt, startX + typedWidth, 2);
+        this.ctx.fillText(untypedTxt, startX + prefixWidth + typedWidth, 2);
       } else {
         this.ctx.fillStyle = threat.color;
         this.ctx.shadowColor = threat.color;
-        this.ctx.fillText(txt, 0, 2);
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(txt, startX + prefixWidth, 2);
       }
 
       this.ctx.restore();
@@ -581,6 +744,41 @@ class CyberCoreGame {
       this.ctx.beginPath();
       this.ctx.arc(0, 0, this.shieldRadius, startAngle, startAngle + segmentLength);
       this.ctx.stroke();
+    }
+
+    // Draw Overcharge progress ring
+    if (this.gameState === 'playing') {
+      const chargeRadius = 46;
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      this.ctx.lineWidth = 4;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, chargeRadius, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      const chargeAngle = (this.charge / 100) * Math.PI * 2;
+      this.ctx.lineWidth = 4;
+      const isCharged = this.charge >= 100;
+      this.ctx.strokeStyle = isCharged 
+        ? (Math.floor(Date.now() / 150) % 2 === 0 ? '#ffc400' : '#ffffff') 
+        : this.app.themeColors.cyan;
+      this.ctx.shadowBlur = isCharged ? 18 : 6;
+      this.ctx.shadowColor = isCharged ? '#ffc400' : this.app.themeColors.cyan;
+      
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, chargeRadius, -Math.PI / 2, -Math.PI / 2 + chargeAngle);
+      this.ctx.stroke();
+
+      // If fully charged, render a subtle prompt
+      if (isCharged && Math.floor(Date.now() / 250) % 2 === 0) {
+        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = '#ffc400';
+        this.ctx.shadowBlur = 10;
+        this.ctx.shadowColor = '#ffc400';
+        this.ctx.font = "bold 9px 'Share Tech Mono', monospace";
+        this.ctx.fillText("TYPE 'BURST'", 0, -chargeRadius - 8);
+      }
+      this.ctx.restore();
     }
 
     // Draw central generator core sphere
@@ -670,7 +868,53 @@ class CyberCoreGame {
   }
 
   processKeystroke(char) {
+    // If keyboard is jammed from EMP Glitcher impact
+    if (this.jamTimer > 0) {
+      this.app.playSynthSound('fail');
+      const wrapper = document.querySelector('.input-display-wrapper');
+      const feedback = document.getElementById('typing-feedback');
+      
+      wrapper.classList.add('shake');
+      feedback.className = 'feedback-text error';
+      feedback.innerText = `SYS_ERROR: INPUT_JAMMED // LOCKOUT ${Math.ceil(this.jamTimer / 1000)}s`;
+      document.getElementById('typing-buffer').innerText = "ERROR";
+      
+      setTimeout(() => {
+        wrapper.classList.remove('shake');
+      }, 250);
+      return;
+    }
+
     this.totalKeystrokes++;
+
+    // Check if player is typing the Overdrive BURST command
+    if (this.charge >= 100) {
+      const nextBurstChar = 'burst'[this.burstTypedLength || 0];
+      if (char === nextBurstChar) {
+        this.burstTypedLength = (this.burstTypedLength || 0) + 1;
+        this.currentInput = 'BURST'.substring(0, this.burstTypedLength);
+        this.correctKeystrokes++;
+        this.app.playSynthSound('typeSuccess');
+        this.updateTypingUI();
+        
+        // Show ultimate casting state
+        const feedback = document.getElementById('typing-feedback');
+        feedback.innerText = "OVERCHARGE DISCHARGE PROCESS...";
+        feedback.className = "feedback-text glow-text-yellow";
+
+        if (this.burstTypedLength === 5) {
+          this.triggerNeuralPurge();
+        }
+        return;
+      } else if (this.burstTypedLength > 0) {
+        // Typo resets ultimate typing progress
+        this.burstTypedLength = 0;
+        this.currentInput = "";
+        this.app.playSynthSound('fail');
+        this.triggerBufferErrorFeedback();
+        return;
+      }
+    }
 
     if (this.targetedThreat === null) {
       // Find closest threat node that starts with this key
@@ -683,6 +927,7 @@ class CyberCoreGame {
         this.targetedThreat.typedLength = 1;
         this.currentInput = char;
         this.correctKeystrokes++;
+        this.charge = Math.min(100, this.charge + 0.5); // correct keystroke builds charge
         this.app.playSynthSound('typeSuccess');
         this.updateTypingUI();
 
@@ -703,6 +948,7 @@ class CyberCoreGame {
         this.targetedThreat.typedLength++;
         this.currentInput += char;
         this.correctKeystrokes++;
+        this.charge = Math.min(100, this.charge + 0.5); // correct keystroke builds charge
         this.app.playSynthSound('typeSuccess');
         this.updateTypingUI();
 
@@ -731,10 +977,25 @@ class CyberCoreGame {
 
     // Score based on word length
     this.score += threat.text.length * 20 + 30;
+    
+    // Accumulate charge based on threat destroyed
+    let chargeReward = 6;
+    if (threat.type === 'emp') {
+      chargeReward = 10;
+    } else if (threat.type === 'drainer') {
+      chargeReward = 10;
+    } else if (threat.type === 'recovery') {
+      chargeReward = 12;
+      // Heal core shield
+      this.shields = Math.min(100, this.shields + 15);
+      this.app.playSynthSound('commandComplete');
+    }
+    
+    this.charge = Math.min(100, this.charge + chargeReward);
     this.updateHUD();
 
     // Trigger visual explosion and sounds
-    this.spawnExplosion(threat.x, threat.y, 'cyan');
+    this.spawnExplosion(threat.x, threat.y, threat.type === 'emp' ? 'yellow' : 'cyan');
     this.app.playSynthSound('commandComplete');
 
     // Remove threat from list
@@ -746,6 +1007,31 @@ class CyberCoreGame {
     // Clear locks
     this.targetedThreat = null;
     this.currentInput = "";
+    this.updateTypingUI();
+  }
+
+  triggerNeuralPurge() {
+    this.purgeAnimationTimer = 600; // 600ms expansion animation
+    this.app.playSynthSound('gameOver'); // Deep sweep sound
+    this.triggerScreenShake();
+
+    // Destroy all threats and award partial score
+    this.threats.forEach(threat => {
+      let explosionColor = 'magenta';
+      if (threat.type === 'emp') explosionColor = 'yellow';
+      else if (threat.type === 'recovery') explosionColor = 'cyan';
+      
+      this.spawnExplosion(threat.x, threat.y, explosionColor);
+      this.score += threat.text.length * 10 + 15;
+    });
+
+    this.threats = [];
+    this.targetedThreat = null;
+    this.currentInput = "";
+    this.charge = 0;
+    this.burstTypedLength = 0;
+    
+    this.updateHUD();
     this.updateTypingUI();
   }
 
@@ -793,16 +1079,20 @@ class CyberCoreGame {
   }
 
   updateHUD() {
-    document.getElementById('hud-score').innerText = String(this.score).padStart(6, '0');
+    const roundedScore = Math.floor(this.score);
+    document.getElementById('hud-score').innerText = String(roundedScore).padStart(6, '0');
     document.getElementById('hud-timer').innerText = this.getFormattedTime(this.timer);
 
     const container = document.getElementById('hud-shields');
-    container.innerHTML = '';
-    for (let i = 0; i < 3; i++) {
-      const cell = document.createElement('span');
-      cell.className = `shield-cell ${i < this.shields ? 'active' : ''}`;
-      container.appendChild(cell);
-    }
+    const percentage = Math.max(0, Math.round(this.shields));
+    container.innerHTML = `
+      <div class="cyber-shield-bar-wrapper">
+        <span class="shield-pct-text">${percentage}%</span>
+        <div class="cyber-shield-bar-bg">
+          <div class="cyber-shield-bar-fill" style="width: ${percentage}%"></div>
+        </div>
+      </div>
+    `;
   }
 
   updateTypingUI() {

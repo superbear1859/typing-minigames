@@ -1391,5 +1391,43 @@ input:checked + .slider:before {
 }
 .overlay-glass::-webkit-scrollbar-thumb:hover {
   background: var(--color-neon-magenta);
+  border-radius: 4px;
+}
+
+/* Custom Cyber Core Shield bar styles */
+#game-view.mode-cyber-core .cyber-shield-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 180px;
+  font-family: var(--font-mono);
+}
+
+#game-view.mode-cyber-core .shield-pct-text {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--color-neon-magenta);
+  text-shadow: 0 0 8px rgba(255, 0, 91, 0.6);
+  min-width: 40px;
+  text-align: right;
+}
+
+#game-view.mode-cyber-core .cyber-shield-bar-bg {
+  flex: 1;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 0, 91, 0.25);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+#game-view.mode-cyber-core .cyber-shield-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-neon-magenta), #ff3377);
+  box-shadow: 0 0 8px rgba(255, 0, 91, 0.85);
+  transition: width 0.1s ease;
+  border-radius: 2px;
 }
 
