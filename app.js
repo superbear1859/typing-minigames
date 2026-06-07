@@ -43,6 +43,7 @@ class NeonArcadeApp {
 
     this.initEventListeners();
     this.updateDashboardStats();
+    this.initHoverInfo();
     
     // Initialize Game Engines
     if (typeof LaneSwitcherGame !== 'undefined') {
@@ -658,6 +659,82 @@ class NeonArcadeApp {
         break;
       }
     }
+  }
+
+  initHoverInfo() {
+    const tipPanel = document.querySelector('.tip-panel');
+    if (!tipPanel) return;
+
+    // Define info blocks for each game
+    const gameInfos = {
+      'card-lane-switcher': `
+        <h3 class="panel-title">// TRANSMISSION: LANE_SWITCHER</h3>
+        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+          <p class="tip-text" style="color: var(--color-neon-cyan); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Navigate a 5-lane highway and dodge orange barricades.</p>
+          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+            <li>• <span style="color: var(--color-neon-cyan)">left</span> - Shift Left 1 Lane</li>
+            <li>• <span style="color: var(--color-neon-cyan)">right</span> - Shift Right 1 Lane</li>
+            <li>• <span style="color: var(--color-neon-magenta)">spin</span> - Overdrive Spin (0.5s Shield)</li>
+          </ul>
+          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Typing errors trigger a 500ms input lockout. Focus on accuracy over raw speed!"</p>
+        </div>
+      `,
+      'card-word-defender': `
+        <h3 class="panel-title">// TRANSMISSION: WORD_DEFENDER</h3>
+        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+          <p class="tip-text" style="color: var(--color-neon-magenta); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Shoot down incoming space code words before shields breach.</p>
+          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+            <li>• Type letters of descending words to lock lasers.</li>
+            <li>• Complete word spelling to launch interceptor missiles.</li>
+          </ul>
+          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Completed words freeze in place while missiles are in flight. Target low-altitude threats first!"</p>
+        </div>
+      `,
+      'card-cyber-drift': `
+        <h3 class="panel-title">// TRANSMISSION: CYBER_DRIFT</h3>
+        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+          <p class="tip-text" style="color: var(--color-neon-yellow); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Drift through highway gates at high velocity.</p>
+          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+            <li>• Type first letter of gate to lock track route.</li>
+            <li>• Type full word to align vehicle chassis.</li>
+          </ul>
+          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Successfully drifting 5 gates consecutively activates dual exhaust TURBO BOOST for double points!"</p>
+        </div>
+      `,
+      'card-cyber-core': `
+        <h3 class="panel-title">// TRANSMISSION: CYBER_CORE</h3>
+        <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+          <p class="tip-text" style="color: var(--color-neon-purple); margin-bottom: 8px;"><strong>OBJECTIVE:</strong> Protect the generator core from 360-degree convergence.</p>
+          <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+          <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+            <li>• Type first letter of node to aim plasma turret.</li>
+            <li>• Complete word spelling to discharge instant energy lasers.</li>
+          </ul>
+          <p class="tip-text" style="font-style: italic;">"PRO-TIP: Watch core's revolving shields. They absorb node collisions but let laser beams pass outwards!"</p>
+        </div>
+      `
+    };
+
+    const defaultHtml = tipPanel.innerHTML;
+
+    Object.keys(gameInfos).forEach(id => {
+      const card = document.getElementById(id);
+      if (card) {
+        card.addEventListener('mouseenter', () => {
+          tipPanel.innerHTML = gameInfos[id];
+          this.playSynthSound('click');
+          
+          // Smoothly scroll the card fully into view if it is cut off
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+        card.addEventListener('mouseleave', () => {
+          tipPanel.innerHTML = defaultHtml;
+        });
+      }
+    });
   }
 }
 

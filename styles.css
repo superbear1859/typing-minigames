@@ -219,6 +219,10 @@ body::after {
   display: flex;
 }
 
+#dashboard-view {
+  overflow: hidden;
+}
+
 /* ==========================================================================
    BUTTONS (NEON ARCADE BUTTON STYLE)
    ========================================================================== */
@@ -356,13 +360,15 @@ body::after {
   grid-template-columns: 2.2fr 1fr;
   gap: 20px;
   overflow: hidden;
-  height: 100%;
+  min-height: 0;
 }
 
 .game-selection {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
 }
 
 .section-header-row {

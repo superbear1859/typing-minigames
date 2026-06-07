@@ -459,6 +459,18 @@ class CyberCoreGame {
     });
   }
 
+  drawParticles() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.alpha;
+      this.ctx.fillStyle = p.color;
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+
   drawThreats() {
     this.ctx.textAlign = 'center';
     this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
