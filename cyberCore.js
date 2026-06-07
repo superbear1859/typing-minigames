@@ -95,14 +95,14 @@ class CyberCoreGame {
     // Speed and spawn interval based on difficulty
     const diff = this.app.difficulty;
     if (diff === 'hyper') {
-      this.baseSpeed = 0.05;
-      this.threatSpawnInterval = 2200;
+      this.baseSpeed = 0.04;
+      this.threatSpawnInterval = 2600;
     } else if (diff === 'overload') {
-      this.baseSpeed = 0.08;
-      this.threatSpawnInterval = 1300;
+      this.baseSpeed = 0.065;
+      this.threatSpawnInterval = 1600;
     } else {
-      this.baseSpeed = 0.03;
-      this.threatSpawnInterval = 3500;
+      this.baseSpeed = 0.024;
+      this.threatSpawnInterval = 4200;
     }
     this.threatSpeed = this.baseSpeed;
     this.threatSpawnTimer = 0;
@@ -297,10 +297,10 @@ class CyberCoreGame {
       // Drainer (hacker) node behavior: stop and tether when close
       if (threat.type === 'drainer' && threat.distance <= 180) {
         threat.isTethered = true;
-        // Drain shields (approx 5% per second)
-        this.shields = Math.max(0, this.shields - 0.005 * dt);
-        // Drain score (approx 2 points per second)
-        this.score = Math.max(0, this.score - 0.002 * dt);
+        // Drain shields (approx 3% per second)
+        this.shields = Math.max(0, this.shields - 0.003 * dt);
+        // Drain score (approx 1 point per second)
+        this.score = Math.max(0, this.score - 0.001 * dt);
         this.updateHUD();
         
         if (this.shields <= 0) {
@@ -327,22 +327,22 @@ class CyberCoreGame {
         }
 
         // Damage calculations
-        let damage = 15;
+        let damage = 10;
         let explosionColor = 'magenta';
         
         if (threat.type === 'emp') {
-          damage = 15;
-          this.jamTimer = 2500; // 2.5s input jam lockout
+          damage = 10;
+          this.jamTimer = 1500; // 1.5s input jam lockout
           explosionColor = 'yellow';
           // Clear current target lock as systems reboot
           this.targetedThreat = null;
           this.currentInput = "";
           this.updateTypingUI();
         } else if (threat.type === 'drainer') {
-          damage = 20;
+          damage = 15;
           explosionColor = 'magenta';
         } else if (threat.type === 'recovery') {
-          damage = 10; // Healing packets still disrupt when colliding passively
+          damage = 5; // Healing packets still disrupt when colliding passively
           explosionColor = 'cyan';
         }
 
@@ -989,7 +989,7 @@ class CyberCoreGame {
     } else if (threat.type === 'recovery') {
       chargeReward = 12;
       // Heal core shield
-      this.shields = Math.min(100, this.shields + 15);
+      this.shields = Math.min(100, this.shields + 20);
       this.app.playSynthSound('commandComplete');
     }
     
