@@ -26,19 +26,19 @@ class LaneSwitcherGame {
     this.carRotation = 0; // For spin animation
 
     // Spin ability variables
-    this.spinDuration = 700; // 0.7 seconds (in ms)
+    this.spinDuration = 500; // 0.5 seconds (in ms)
     this.spinTimeRemaining = 0; // ms
 
     // Immunity after hit
-    this.immunityDuration = 1000; // shorter invulnerability period // 1.5 seconds
+    this.immunityDuration = 800; // shorter invulnerability period
     this.immunityTimeRemaining = 0; // ms
 
     // Obstacles
     this.obstacles = [];
     this.obstacleSpawnTimer = 0;
-    this.obstacleSpawnInterval = 2500; // ms (faster obstacle spawn)
-    this.baseSpeed = 0.10; // Slightly faster base speed
-    this.currentSpeed = 0.08;
+    this.obstacleSpawnInterval = 1800; // ms (faster obstacle spawn)
+    this.baseSpeed = 0.12; // Slightly faster base speed
+    this.currentSpeed = 0.12;
 
     // Typing system
     this.currentInput = "";
@@ -113,14 +113,14 @@ class LaneSwitcherGame {
     // Set speed based on difficulty settings
     const diff = this.app.difficulty;
     if (diff === 'hyper') {
-      this.baseSpeed = 0.14;
-      this.obstacleSpawnInterval = 2200;
+      this.baseSpeed = 0.18;
+      this.obstacleSpawnInterval = 1200;
     } else if (diff === 'overload') {
-      this.baseSpeed = 0.22;
-      this.obstacleSpawnInterval = 1400;
+      this.baseSpeed = 0.28;
+      this.obstacleSpawnInterval = 800;
     } else {
-      this.baseSpeed = 0.10; // tougher normal difficulty
-      this.obstacleSpawnInterval = 2500; // tougher normal difficulty
+      this.baseSpeed = 0.12; // tougher normal difficulty
+      this.obstacleSpawnInterval = 1800; // tougher normal difficulty
     }
     this.currentSpeed = this.baseSpeed;
     this.obstacleSpawnTimer = 0;
@@ -142,7 +142,7 @@ class LaneSwitcherGame {
       <div class="control-legend">
         <div class="control-key"><span>left</span> <span class="action-desc">→ Switch left 1 lane</span></div>
         <div class="control-key"><span>right</span> <span class="action-desc">→ Switch right 1 lane</span></div>
-        <div class="control-key"><span>spin</span> <span class="action-desc">→ 0.7s Invincibility / Destroy obstacles</span></div>
+        <div class="control-key"><span>spin</span> <span class="action-desc">→ 0.5s Invincibility / Destroy obstacles</span></div>
       </div>
       <p class="warning-text">Survival window: 5 minutes. Do not crash into orange blocks!</p>
     `;
@@ -401,18 +401,20 @@ class LaneSwitcherGame {
     const diff = this.app.difficulty;
 
     if (diff === 'overload') {
-      if (rand < 0.3) maxToSpawn = 3;
-      else if (rand < 0.75) maxToSpawn = 2;
+      if (rand < 0.4) maxToSpawn = 4; // up to 4 lanes blocked!
+      else if (rand < 0.85) maxToSpawn = 3;
+      else maxToSpawn = 2;
     } else if (diff === 'hyper') {
-      if (rand < 0.15) maxToSpawn = 3;
-      else if (rand < 0.55) maxToSpawn = 2;
+      if (rand < 0.25) maxToSpawn = 3;
+      else if (rand < 0.7) maxToSpawn = 2;
     } else { // normal
       if (rand < 0.6) maxToSpawn = 2; // 60% chance of spawning 2 boxes
-          else if (rand < 0.8) maxToSpawn = 3; // 20% chance of spawning 3 boxes
+      else if (rand < 0.8) maxToSpawn = 3; // 20% chance of spawning 3 boxes
     }
 
-    // Ensure we do not block all 5 lanes (max 3 boxes at once)
-    maxToSpawn = Math.min(maxToSpawn, 3);
+    // Ensure we do not block all 5 lanes (max 4 on overload, 3 on hyper, 3 on normal)
+    const maxAllowed = diff === 'overload' ? 4 : 3;
+    maxToSpawn = Math.min(maxToSpawn, maxAllowed);
 
     // Keep track of lanes chosen in this spawn cycle
     const chosenLanes = new Set();
@@ -847,8 +849,9 @@ class LaneSwitcherGame {
         this.executeCommand(completedCommand);
       }
     } else {
-      // Typo! Clear buffer, shake screen feedback, play audio warning
+      // Typo! Clear buffer, shake screen feedback, play audio warning, lockout for 500ms
       this.currentInput = "";
+      this.cooldownRemaining = 500; // 500ms typo penalty lockout!
       this.app.playSynthSound('fail');
       this.triggerBufferErrorFeedback();
     }
@@ -856,7 +859,7 @@ class LaneSwitcherGame {
 
   executeCommand(cmd) {
     this.currentInput = ""; // clear buffer
-    this.cooldownRemaining = 1500; // 1.5s cooldown
+    this.cooldownRemaining = 600; // 600ms cooldown (down from 1.5s to allow fast maneuvering)
     this.updateTypingUI();
 
     if (cmd === 'left') {
