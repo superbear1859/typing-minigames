@@ -26,7 +26,7 @@ class CyberDriftGame {
     // Track state
     this.trackPoints = [];
     this.roadWidth = 180;
-    this.scrollSpeed = 0.08; // px per ms (reduced from 0.15 for better typing pacing)
+    this.scrollSpeed = 0.05; // px per ms (reduced for slower driving pace)
     this.baseSpeed = 0.08;
     
     // Curvature generator parameters
@@ -134,7 +134,7 @@ class CyberDriftGame {
       this.baseSpeed = 0.18;
       this.gateMinDistance = 280;
     } else {
-      this.baseSpeed = 0.08;
+      this.baseSpeed = 0.05;
       this.gateMinDistance = 400;
     }
     this.scrollSpeed = this.baseSpeed;
