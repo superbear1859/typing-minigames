@@ -395,11 +395,27 @@ body::after {
 
 .game-grid {
   flex: 1;
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 15px;
   overflow-y: auto;
   padding-right: 5px;
+}
+
+/* Custom scrollbar for game-grid to match cyberpunk theme */
+.game-grid::-webkit-scrollbar {
+  width: 6px;
+}
+.game-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+.game-grid::-webkit-scrollbar-thumb {
+  background: var(--color-neon-purple);
+  border-radius: 4px;
+}
+.game-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neon-magenta);
 }
 
 /* Glassmorphic Game Selection Cards */
@@ -412,6 +428,7 @@ body::after {
   display: flex;
   transition: all 0.3s ease;
   backdrop-filter: blur(12px);
+  flex-shrink: 0;
 }
 
 .game-card.active-card {
@@ -1340,6 +1357,17 @@ input:checked + .slider:before {
 }
 
 #game-view.mode-cyber-drift .typing-hud {
+  grid-template-columns: 4fr 1.2fr;
+}
+
+/* ==========================================================================
+   CYBER CORE MINIGAME OVERRIDES
+   ========================================================================== */
+#game-view.mode-cyber-core .cmd-dictionary {
+  display: none;
+}
+
+#game-view.mode-cyber-core .typing-hud {
   grid-template-columns: 4fr 1.2fr;
 }
 

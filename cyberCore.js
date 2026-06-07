@@ -1,0 +1,893 @@
+/**
+ * NEON GRID // CYBER CORE MINIGAME ENGINE
+ * Circular defense typing game where threats converge on a central core from 360 degrees.
+ * Player types words to aim, charge, and fire high-energy plasma sweeps.
+ */
+
+class CyberCoreGame {
+  constructor(app) {
+    this.app = app;
+    this.canvas = document.getElementById('game-canvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    // Core game state
+    this.gameState = 'start'; // 'start', 'playing', 'paused', 'gameover'
+    this.timer = 300; // 5 minutes
+    this.timerInterval = null;
+    this.score = 0;
+    this.shields = 3;
+    this.lastFrameTime = 0;
+
+    // Word dictionaries
+    this.words3_4 = ['node', 'grid', 'core', 'link', 'data', 'sync', 'hash', 'port', 'gate', 'void', 'byte', 'chip', 'code', 'hack', 'ping', 'null', 'zone', 'flux', 'ion', 'beam'];
+    this.words5_6 = ['orbit', 'cyber', 'radar', 'sonar', 'matrix', 'photon', 'vector', 'tensor', 'vertex', 'shield', 'sensor', 'system', 'engine', 'plasma', 'beacon', 'quasar'];
+    this.words7_10 = ['telemetry', 'mainframe', 'singularity', 'encryption', 'processor', 'bandwidth', 'cybernetics', 'supernova', 'synthesizer', 'interceptor', 'hyperdrive'];
+
+    // Game variables
+    this.threats = [];
+    this.threatSpawnTimer = 0;
+    this.threatSpawnInterval = 3500; // ms
+    this.threatSpeed = 0.03; // px per ms
+    this.baseSpeed = 0.03;
+
+    // Visual configurations
+    this.coreRadius = 35;
+    this.shieldRotation = 0;
+    this.shieldRadius = 60;
+    this.activeLasers = []; // Lasers currently rendering
+    this.particles = [];
+    
+    // Background scanning lines
+    this.scanLinesOffset = 0;
+
+    // Target tracking
+    this.targetedThreat = null;
+    this.currentInput = "";
+    this.overlayInput = "";
+    this.menuBuffer = "";
+
+    // Stats
+    this.correctKeystrokes = 0;
+    this.totalKeystrokes = 0;
+    this.gameTimeElapsed = 0;
+
+    // Bind resize
+    window.addEventListener('resize', () => this.resizeCanvas());
+    this.resizeCanvas();
+
+    // Key listener
+    window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+  }
+
+  resizeCanvas() {
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    this.canvas.width = rect.width;
+    this.canvas.height = rect.height;
+  }
+
+  reset() {
+    this.gameState = 'start';
+    this.timer = 300;
+    this.score = 0;
+    this.shields = 3;
+    this.threats = [];
+    this.activeLasers = [];
+    this.particles = [];
+    this.targetedThreat = null;
+    this.currentInput = "";
+    this.overlayInput = "";
+    this.menuBuffer = "";
+    this.correctKeystrokes = 0;
+    this.totalKeystrokes = 0;
+    this.gameTimeElapsed = 0;
+
+    if (this.timerInterval) clearInterval(this.timerInterval);
+
+    // Speed and spawn interval based on difficulty
+    const diff = this.app.difficulty;
+    if (diff === 'hyper') {
+      this.baseSpeed = 0.05;
+      this.threatSpawnInterval = 2200;
+    } else if (diff === 'overload') {
+      this.baseSpeed = 0.08;
+      this.threatSpawnInterval = 1300;
+    } else {
+      this.baseSpeed = 0.03;
+      this.threatSpawnInterval = 3500;
+    }
+    this.threatSpeed = this.baseSpeed;
+    this.threatSpawnTimer = 0;
+
+    this.resizeCanvas();
+    this.updateHUD();
+    this.updateTypingUI();
+
+    // Reset overlays
+    this.toggleOverlay('game-start-overlay', true);
+    this.toggleOverlay('game-over-overlay', false);
+    this.toggleOverlay('game-paused-overlay', false);
+
+    // Setup start overlay instructions dynamically for Cyber Core
+    document.getElementById('start-overlay-title').innerText = "CYBER CORE";
+    document.getElementById('start-overlay-title').className = "flicker glow-text-yellow";
+    document.getElementById('start-overlay-instructions').innerHTML = `
+      <p class="instruction-line"><span class="highlight">DEFEND THE CYBER CORE</span> from incoming network threats:</p>
+      <div class="control-legend">
+        <div class="control-key" style="margin-bottom:8px;">
+          <span style="border-color: var(--color-neon-yellow); color: var(--color-neon-yellow); background: rgba(255,196,0,0.1);">Aim</span> 
+          <span class="action-desc">→ Press first letter of an approaching node to lock core's targeting system</span>
+        </div>
+        <div class="control-key" style="margin-bottom:8px;">
+          <span style="border-color: var(--color-neon-yellow); color: var(--color-neon-yellow); background: rgba(255,196,0,0.1);">Fire</span> 
+          <span class="action-desc">→ Finish spelling to discharge a high-energy laser beam and destroy it</span>
+        </div>
+        <div class="control-key">
+          <span style="border-color: var(--color-neon-yellow); color: var(--color-neon-yellow); background: rgba(255,196,0,0.1);">Core</span> 
+          <span class="action-desc">→ Prevent threats from penetrating the core's rotating orbit ring</span>
+        </div>
+      </div>
+      <p class="warning-text">Survival window: 5 minutes. Protect core system integrity at all costs!</p>
+    `;
+
+    this.updateOverlayTargetHint('start');
+
+    // Run animation frame loop
+    this.lastFrameTime = performance.now();
+    if (!this.animationFrameId) {
+      this.loop(this.lastFrameTime);
+    }
+  }
+
+  start() {
+    this.gameState = 'playing';
+    this.startTime = Date.now();
+
+    this.toggleOverlay('game-start-overlay', false);
+    this.app.playSynthSound('gameStart');
+
+    // Game timer countdown loop
+    this.timerInterval = setInterval(() => {
+      if (this.gameState === 'playing') {
+        this.timer--;
+        this.gameTimeElapsed++;
+        this.score += 5; // Survival score
+        this.updateHUD();
+
+        // Speed ramps up slowly over survival time
+        this.threatSpeed = this.baseSpeed + (this.gameTimeElapsed * 0.0001);
+
+        if (this.timer <= 0) {
+          this.endGame(true); // Victory!
+        }
+      }
+    }, 1000);
+  }
+
+  togglePause() {
+    if (this.gameState === 'playing') {
+      this.gameState = 'paused';
+      this.overlayInput = "";
+      this.toggleOverlay('game-paused-overlay', true);
+      this.app.playSynthSound('click');
+    } else if (this.gameState === 'paused') {
+      this.gameState = 'playing';
+      this.toggleOverlay('game-paused-overlay', false);
+      this.app.playSynthSound('click');
+    }
+  }
+
+  abortGame() {
+    if (confirm("ABORT THIS SYSTEM RUN? PROGRESS WILL BE LOST.")) {
+      if (this.timerInterval) clearInterval(this.timerInterval);
+      this.gameState = 'start';
+      this.app.showView('dashboard');
+    }
+  }
+
+  exitToMenu() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.gameState = 'start';
+    this.app.showView('dashboard');
+    this.app.playSynthSound('click');
+  }
+
+  endGame(isVictory = false) {
+    this.gameState = 'gameover';
+    if (this.timerInterval) clearInterval(this.timerInterval);
+
+    this.overlayInput = "";
+    this.updateOverlayTargetHint('restart');
+
+    if (isVictory) {
+      this.app.playSynthSound('commandComplete');
+      document.getElementById('game-over-title').innerText = "CORE SECURED";
+      document.getElementById('game-over-title').className = "glow-text-cyan flicker";
+      document.getElementById('game-over-reason').innerText = "System core encryption fully fortified.";
+    } else {
+      this.app.playSynthSound('gameOver');
+      document.getElementById('game-over-title').innerText = "CORE DESTROYED";
+      document.getElementById('game-over-title').className = "glow-text-magenta flicker-slow";
+      document.getElementById('game-over-reason').innerText = "System containment breached. Critical leak.";
+    }
+
+    const timeStr = this.getFormattedTime(300 - this.timer);
+    const wpm = this.calculateWPM();
+
+    document.getElementById('final-score-val').innerText = this.score;
+    document.getElementById('final-time-val').innerText = timeStr;
+    document.getElementById('final-wpm-val').innerText = `${wpm} words per minute`;
+
+    this.app.saveHighScore(this.score, wpm, timeStr);
+    this.toggleOverlay('game-over-overlay', true);
+  }
+
+  loop(currentTime) {
+    if (this.app.activeGame !== this) {
+      this.animationFrameId = null;
+      return;
+    }
+
+    this.animationFrameId = requestAnimationFrame((t) => this.loop(t));
+
+    // Auto-resize check
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    const w = Math.floor(rect.width);
+    const h = Math.floor(rect.height);
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.resizeCanvas();
+    }
+
+    const dt = currentTime - this.lastFrameTime;
+    this.lastFrameTime = currentTime;
+
+    this.update(dt);
+    this.render();
+  }
+
+  update(dt) {
+    if (this.app.activeGame !== this) return;
+
+    // Rotate defensive rings
+    const rotationFactor = this.gameState === 'playing' ? 0.001 : 0.0002;
+    this.shieldRotation = (this.shieldRotation + rotationFactor * dt) % (Math.PI * 2);
+
+    // Scroll scanning lines for cyber vibe grid
+    this.scanLinesOffset = (this.scanLinesOffset + 0.02 * dt) % 40;
+
+    this.updateParticles(dt);
+
+    // Update active laser beam durations
+    for (let i = this.activeLasers.length - 1; i >= 0; i--) {
+      const laser = this.activeLasers[i];
+      laser.duration -= dt;
+      if (laser.duration <= 0) {
+        this.activeLasers.splice(i, 1);
+      }
+    }
+
+    if (this.gameState !== 'playing') return;
+
+    // Move threat nodes towards center core
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    for (let i = this.threats.length - 1; i >= 0; i--) {
+      const threat = this.threats[i];
+      threat.distance -= this.threatSpeed * dt;
+
+      // Calculate coordinates
+      threat.x = cx + Math.cos(threat.angle) * threat.distance;
+      threat.y = cy + Math.sin(threat.angle) * threat.distance;
+
+      // Threat hits the core!
+      if (threat.distance <= this.coreRadius + 5) {
+        this.threats.splice(i, 1);
+
+        if (this.targetedThreat === threat) {
+          this.targetedThreat = null;
+          this.currentInput = "";
+          this.updateTypingUI();
+        }
+
+        // Damage calculation
+        this.shields--;
+        this.triggerScreenShake();
+        this.spawnExplosion(threat.x, threat.y, 'magenta');
+        this.app.playSynthSound('crash');
+        this.updateHUD();
+
+        if (this.shields <= 0) {
+          this.endGame(false);
+        }
+      }
+    }
+
+    // Threat Spawner
+    this.threatSpawnTimer += dt;
+    if (this.threatSpawnTimer >= this.threatSpawnInterval) {
+      this.spawnThreat();
+      this.threatSpawnTimer = 0;
+    }
+  }
+
+  spawnThreat() {
+    if (this.canvas.width < 100 || this.canvas.height < 100) return;
+
+    // Pick word bank based on game time
+    let wordList = [];
+    if (this.gameTimeElapsed > 90) {
+      const rand = Math.random();
+      if (rand < 0.3) wordList = this.words3_4;
+      else if (rand < 0.7) wordList = this.words5_6;
+      else wordList = this.words7_10;
+    } else if (this.gameTimeElapsed > 30) {
+      if (Math.random() < 0.5) wordList = this.words3_4;
+      else wordList = this.words5_6;
+    } else {
+      wordList = this.words3_4;
+    }
+
+    const text = wordList[Math.floor(Math.random() * wordList.length)];
+    
+    // Spawn threat at a random angle around center, far offscreen
+    const angle = Math.random() * Math.PI * 2;
+    const spawnDistance = Math.max(this.canvas.width, this.canvas.height) * 0.55;
+
+    // Calculate coordinates
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    this.threats.push({
+      text: text,
+      angle: angle,
+      distance: spawnDistance,
+      x: cx + Math.cos(angle) * spawnDistance,
+      y: cy + Math.sin(angle) * spawnDistance,
+      typedLength: 0,
+      color: Math.random() < 0.5 ? this.app.themeColors.cyan : this.app.themeColors.magenta
+    });
+  }
+
+  spawnExplosion(x, y, theme) {
+    if (!this.app.particlesEnabled) return;
+
+    const count = theme === 'magenta' ? 30 : 20;
+    const color = theme === 'magenta' ? this.app.themeColors.magenta : this.app.themeColors.yellow;
+
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.08 + Math.random() * 0.35;
+      this.particles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 2 + Math.random() * 3,
+        color: color,
+        alpha: 1.0,
+        decay: 0.002 + Math.random() * 0.002
+      });
+    }
+  }
+
+  updateParticles(dt) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= p.decay * dt;
+      if (p.alpha <= 0) {
+        this.particles.splice(i, 1);
+      }
+    }
+  }
+
+  triggerScreenShake() {
+    const screen = document.getElementById('arcade-screen');
+    screen.classList.add('damage-flash');
+    this.canvas.classList.add('shake');
+    setTimeout(() => {
+      screen.classList.remove('damage-flash');
+      this.canvas.classList.remove('shake');
+    }, 350);
+  }
+
+  render() {
+    if (this.app.activeGame !== this) return;
+
+    // Clear background
+    this.ctx.fillStyle = '#060112';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Deep grid concentric backgrounds
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    const radial = this.ctx.createRadialGradient(cx, cy, 5, cx, cy, Math.max(cx, cy));
+    radial.addColorStop(0, '#120228');
+    radial.addColorStop(0.6, '#060112');
+    this.ctx.fillStyle = radial;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw background concentric radar lines
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(157, 0, 255, 0.1)';
+    this.ctx.lineWidth = 1;
+    const maxRadius = Math.max(this.canvas.width, this.canvas.height) * 0.6;
+    for (let r = 80; r < maxRadius; r += 80) {
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+    this.ctx.restore();
+
+    // Draw active laser beams
+    this.drawLasers();
+
+    // Draw particles
+    this.drawParticles();
+
+    // Draw threat nodes & text
+    this.drawThreats();
+
+    // Draw core turret & rotating shield segments
+    this.drawCore();
+  }
+
+  drawLasers() {
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    this.activeLasers.forEach(laser => {
+      this.ctx.save();
+      this.ctx.strokeStyle = laser.color;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowColor = laser.color;
+      this.ctx.lineWidth = 6 * (laser.duration / 180); // Beam narrows over duration
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(cx, cy);
+      this.ctx.lineTo(laser.tx, laser.ty);
+      this.ctx.stroke();
+
+      // Inner core core white beam
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 2 * (laser.duration / 180);
+      this.ctx.stroke();
+
+      this.ctx.restore();
+    });
+  }
+
+  drawThreats() {
+    this.ctx.textAlign = 'center';
+    this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
+
+    this.threats.forEach(threat => {
+      const isTargeted = this.targetedThreat === threat;
+
+      this.ctx.save();
+      this.ctx.translate(threat.x, threat.y);
+
+      // Draw wireframe hexagon representing network threat
+      this.ctx.shadowBlur = isTargeted ? 12 : 5;
+      this.ctx.shadowColor = threat.color;
+      this.ctx.strokeStyle = threat.color;
+      this.ctx.lineWidth = isTargeted ? 2.5 : 1.5;
+      this.ctx.fillStyle = 'rgba(6, 1, 18, 0.75)';
+
+      const hexSize = 20;
+      this.ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i;
+        const hx = Math.cos(angle) * hexSize;
+        const hy = Math.sin(angle) * hexSize;
+        if (i === 0) this.ctx.moveTo(hx, hy);
+        else this.ctx.lineTo(hx, hy);
+      }
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Draw threat target word label card
+      this.ctx.translate(0, 32);
+      this.ctx.font = "bold 14px 'Share Tech Mono', monospace";
+      
+      const textWidth = this.ctx.measureText(threat.text).width + 12;
+      this.ctx.fillStyle = isTargeted ? 'rgba(0, 240, 255, 0.1)' : 'rgba(0, 0, 0, 0.5)';
+      this.ctx.strokeStyle = isTargeted ? this.app.themeColors.cyan : 'rgba(255, 255, 255, 0.08)';
+      this.ctx.lineWidth = 1;
+      this.ctx.beginPath();
+      this.ctx.rect(-textWidth / 2, -13, textWidth, 20);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Character rendering split logic
+      const txt = threat.text;
+      const typedLen = threat.typedLength;
+
+      this.ctx.shadowBlur = isTargeted ? 8 : 4;
+      if (typedLen > 0) {
+        const typedTxt = txt.substring(0, typedLen);
+        const untypedTxt = txt.substring(typedLen);
+
+        const typedWidth = this.ctx.measureText(typedTxt).width;
+        const totalWidth = this.ctx.measureText(txt).width;
+        const startX = -totalWidth / 2;
+
+        // Highlight typed in cyan
+        this.ctx.fillStyle = this.app.themeColors.cyan;
+        this.ctx.shadowColor = this.app.themeColors.cyan;
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(typedTxt, startX, 2);
+
+        // Highlight remaining in original color
+        this.ctx.fillStyle = isTargeted ? '#ffffff' : threat.color;
+        this.ctx.shadowColor = isTargeted ? this.app.themeColors.cyan : threat.color;
+        this.ctx.fillText(untypedTxt, startX + typedWidth, 2);
+      } else {
+        this.ctx.fillStyle = threat.color;
+        this.ctx.shadowColor = threat.color;
+        this.ctx.fillText(txt, 0, 2);
+      }
+
+      this.ctx.restore();
+    });
+  }
+
+  drawCore() {
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    this.ctx.save();
+    this.ctx.translate(cx, cy);
+
+    // Aiming laser line (if target is active)
+    if (this.targetedThreat && this.gameState === 'playing') {
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+      this.ctx.lineWidth = 1.5;
+      this.ctx.setLineDash([4, 4]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, 0);
+      this.ctx.lineTo(this.targetedThreat.x - cx, this.targetedThreat.y - cy);
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
+    // Outer revolving shields arcs (rotating circles)
+    this.ctx.strokeStyle = this.app.themeColors.yellow;
+    this.ctx.shadowBlur = 10;
+    this.ctx.shadowColor = this.app.themeColors.yellow;
+    this.ctx.lineWidth = 3;
+
+    // Draw 3 arc segments
+    const numShields = 3;
+    const segmentLength = (Math.PI * 2) / numShields - 0.5; // leaving gaps
+    for (let i = 0; i < numShields; i++) {
+      const startAngle = this.shieldRotation + (Math.PI * 2 / numShields) * i;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, this.shieldRadius, startAngle, startAngle + segmentLength);
+      this.ctx.stroke();
+    }
+
+    // Draw central generator core sphere
+    this.ctx.shadowBlur = 15;
+    this.ctx.shadowColor = this.app.themeColors.cyan;
+    this.ctx.strokeStyle = this.app.themeColors.cyan;
+    this.ctx.fillStyle = '#070014';
+    this.ctx.lineWidth = 2.5;
+
+    this.ctx.beginPath();
+    this.ctx.arc(0, 0, this.coreRadius, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Turret vector (rotates towards targeted threat)
+    let turretAngle = this.shieldRotation * -1.5; // default idle spin
+    if (this.targetedThreat) {
+      turretAngle = Math.atan2(this.targetedThreat.y - cy, this.targetedThreat.x - cx);
+    }
+
+    this.ctx.rotate(turretAngle);
+
+    // Draw turret barrel shape
+    this.ctx.strokeStyle = this.app.themeColors.magenta;
+    this.ctx.shadowColor = this.app.themeColors.magenta;
+    this.ctx.fillStyle = '#070014';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.rect(0, -6, 25, 12);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Inner glowing core dot
+    this.ctx.fillStyle = this.app.themeColors.yellow;
+    this.ctx.beginPath();
+    this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    this.ctx.restore();
+  }
+
+  handleKeyDown(e) {
+    if (this.app.activeGame !== this) return;
+    if (this.app.views.game.classList.contains('active') === false) return;
+
+    const key = e.key;
+
+    // Check for "menu" bypass
+    if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      this.menuBuffer = (this.menuBuffer || "") + key.toLowerCase();
+      if (this.menuBuffer.length > 4) {
+        this.menuBuffer = this.menuBuffer.slice(-4);
+      }
+      if (this.menuBuffer === 'menu') {
+        this.menuBuffer = "";
+        this.exitToMenu();
+        return;
+      }
+    }
+
+    if (key === 'Escape') {
+      e.preventDefault();
+      this.togglePause();
+      return;
+    }
+
+    // Capture overlay typing
+    if (this.gameState === 'start') {
+      this.parseOverlayInput(key, 'start');
+      return;
+    }
+    if (this.gameState === 'gameover') {
+      this.parseOverlayInput(key, 'gameover');
+      return;
+    }
+    if (this.gameState === 'paused') {
+      this.parseOverlayInput(key, 'paused');
+      return;
+    }
+
+    // Gameplay keys
+    if (this.gameState === 'playing') {
+      if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+        this.processKeystroke(key.toLowerCase());
+      }
+    }
+  }
+
+  processKeystroke(char) {
+    this.totalKeystrokes++;
+
+    if (this.targetedThreat === null) {
+      // Find closest threat node that starts with this key
+      const matches = this.threats
+        .filter(t => t.text.startsWith(char))
+        .sort((a, b) => a.distance - b.distance); // prioritize closest threat
+
+      if (matches.length > 0) {
+        this.targetedThreat = matches[0];
+        this.targetedThreat.typedLength = 1;
+        this.currentInput = char;
+        this.correctKeystrokes++;
+        this.app.playSynthSound('typeSuccess');
+        this.updateTypingUI();
+
+        // 1-char word
+        if (this.targetedThreat.text.length === 1) {
+          this.shootTarget(this.targetedThreat);
+        }
+      } else {
+        // Miskey
+        this.currentInput = "";
+        this.app.playSynthSound('fail');
+        this.triggerBufferErrorFeedback();
+      }
+    } else {
+      // Check character match on locked target
+      const targetChar = this.targetedThreat.text[this.targetedThreat.typedLength];
+      if (char === targetChar) {
+        this.targetedThreat.typedLength++;
+        this.currentInput += char;
+        this.correctKeystrokes++;
+        this.app.playSynthSound('typeSuccess');
+        this.updateTypingUI();
+
+        if (this.targetedThreat.typedLength === this.targetedThreat.text.length) {
+          this.shootTarget(this.targetedThreat);
+        }
+      } else {
+        // Typo resets word typed progress and lock
+        this.targetedThreat.typedLength = 0;
+        this.targetedThreat = null;
+        this.currentInput = "";
+        this.app.playSynthSound('fail');
+        this.triggerBufferErrorFeedback();
+      }
+    }
+  }
+
+  shootTarget(threat) {
+    // Fire laser beam
+    this.activeLasers.push({
+      tx: threat.x,
+      ty: threat.y,
+      duration: 180, // beam renders for 180ms
+      color: threat.color
+    });
+
+    // Score based on word length
+    this.score += threat.text.length * 20 + 30;
+    this.updateHUD();
+
+    // Trigger visual explosion and sounds
+    this.spawnExplosion(threat.x, threat.y, 'cyan');
+    this.app.playSynthSound('commandComplete');
+
+    // Remove threat from list
+    const index = this.threats.indexOf(threat);
+    if (index > -1) {
+      this.threats.splice(index, 1);
+    }
+
+    // Clear locks
+    this.targetedThreat = null;
+    this.currentInput = "";
+    this.updateTypingUI();
+  }
+
+  parseOverlayInput(key, overlayType) {
+    if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      const char = key.toLowerCase();
+      const testInput = this.overlayInput + char;
+      let targets = [];
+
+      if (overlayType === 'start') {
+        targets = ['start'];
+      } else if (overlayType === 'gameover') {
+        targets = ['restart', 'exit'];
+      } else if (overlayType === 'paused') {
+        targets = ['resume', 'exit'];
+      }
+
+      const matches = targets.some(tgt => tgt.startsWith(testInput));
+      if (matches) {
+        this.overlayInput = testInput;
+        this.app.playSynthSound('typeSuccess');
+        this.updateOverlayTargetHint(overlayType);
+
+        const completed = targets.find(tgt => tgt === this.overlayInput);
+        if (completed) {
+          this.overlayInput = "";
+          if (completed === 'start') {
+            this.start();
+          } else if (completed === 'restart') {
+            this.reset();
+          } else if (completed === 'resume') {
+            this.togglePause();
+          } else if (completed === 'exit') {
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.gameState = 'start';
+            this.app.showView('dashboard');
+          }
+        }
+      } else {
+        this.overlayInput = "";
+        this.app.playSynthSound('fail');
+        this.updateOverlayTargetHint(overlayType);
+      }
+    }
+  }
+
+  updateHUD() {
+    document.getElementById('hud-score').innerText = String(this.score).padStart(6, '0');
+    document.getElementById('hud-timer').innerText = this.getFormattedTime(this.timer);
+
+    const container = document.getElementById('hud-shields');
+    container.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const cell = document.createElement('span');
+      cell.className = `shield-cell ${i < this.shields ? 'active' : ''}`;
+      container.appendChild(cell);
+    }
+  }
+
+  updateTypingUI() {
+    document.getElementById('typing-buffer').innerText = this.currentInput;
+    document.getElementById('typing-feedback').className = 'feedback-text';
+    document.getElementById('typing-feedback').innerText = this.currentInput ? 'LOCK ON TARGET...' : 'CONVERGING THREATS INCOMING...';
+
+    // Core layout doesn't use static cmd items dictionary, hide or display empty
+    const dictionary = document.querySelector('.cmd-dictionary');
+    if (dictionary) {
+      // Re-enable/reset commands for lane switcher fallback
+      this.app.laneSwitcher.commands.forEach(cmd => {
+        const el = document.getElementById(`cmd-${cmd}`);
+        if (el) {
+          el.classList.remove('active-prefix');
+          el.querySelector('.highlight-typed').innerText = "";
+          el.querySelector('.text-to-type').innerText = cmd;
+        }
+      });
+    }
+  }
+
+  triggerBufferErrorFeedback() {
+    const wrapper = document.querySelector('.input-display-wrapper');
+    const feedback = document.getElementById('typing-feedback');
+
+    wrapper.classList.add('shake');
+    feedback.className = 'feedback-text error';
+    feedback.innerText = 'BUFFER DETECTED GLITCH // RESETTING SIGNAL';
+
+    document.getElementById('typing-buffer').innerText = "";
+
+    setTimeout(() => {
+      wrapper.classList.remove('shake');
+    }, 250);
+
+    this.updateTypingUI();
+  }
+
+  updateOverlayTargetHint(overlayType) {
+    let overlayId = "";
+    let baseWord = "start";
+
+    if (overlayType === 'start') {
+      overlayId = 'game-start-overlay';
+      baseWord = 'start';
+    } else if (overlayType === 'gameover') {
+      overlayId = 'game-over-overlay';
+      if (this.overlayInput && 'exit'.startsWith(this.overlayInput)) {
+        baseWord = 'exit';
+      } else {
+        baseWord = 'restart';
+      }
+    } else if (overlayType === 'paused') {
+      overlayId = 'game-paused-overlay';
+      if (this.overlayInput && 'exit'.startsWith(this.overlayInput)) {
+        baseWord = 'exit';
+      } else {
+        baseWord = 'resume';
+      }
+    }
+
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+
+    const typedSpan = overlay.querySelector('.typed-indicator');
+    const remSpan = overlay.querySelector('.remaining-indicator');
+
+    if (typedSpan && remSpan) {
+      if (this.overlayInput && baseWord.startsWith(this.overlayInput)) {
+        typedSpan.innerText = this.overlayInput;
+        remSpan.innerText = baseWord.substring(this.overlayInput.length).split('').join('-');
+      } else {
+        typedSpan.innerText = "";
+        remSpan.innerText = baseWord.split('').join('-');
+      }
+    }
+  }
+
+  toggleOverlay(id, show) {
+    const el = document.getElementById(id);
+    if (el) {
+      if (show) el.classList.add('active');
+      else el.classList.remove('active');
+    }
+  }
+
+  getFormattedTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  calculateWPM() {
+    if (this.totalKeystrokes === 0 || this.gameTimeElapsed === 0) return 0;
+    const minutes = this.gameTimeElapsed / 60;
+    const wpm = (this.correctKeystrokes / 5) / minutes;
+    return Math.round(wpm) || 0;
+  }
+}
