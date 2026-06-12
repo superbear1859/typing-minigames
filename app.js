@@ -39,6 +39,7 @@ class NeonArcadeApp {
       magenta: rootStyle.getPropertyValue('--color-neon-magenta').trim() || '#ff005b',
       purple: rootStyle.getPropertyValue('--color-neon-purple').trim() || '#9d00ff',
       yellow: rootStyle.getPropertyValue('--color-neon-yellow').trim() || '#ffc400',
+      green: rootStyle.getPropertyValue('--color-neon-green').trim() || '#00ff66',
       white: rootStyle.getPropertyValue('--color-text-white').trim() || '#f5f0fa'
     };
 
@@ -58,6 +59,9 @@ class NeonArcadeApp {
     }
     if (typeof CyberCoreGame !== 'undefined') {
       this.cyberCore = new CyberCoreGame(this);
+    }
+    if (typeof GridRunnerGame !== 'undefined') {
+      this.gridRunner = new GridRunnerGame(this);
     }
 
     // Auto-boot game from URL query parameter (for headless verification)
@@ -83,6 +87,11 @@ class NeonArcadeApp {
         const btn = document.getElementById('btn-play-cyber-core');
         if (btn) btn.click();
       }, 200);
+    } else if (bootGame === 'gridRunner') {
+      setTimeout(() => {
+        const btn = document.getElementById('btn-play-grid-runner');
+        if (btn) btn.click();
+      }, 200);
     }
   }
 
@@ -99,6 +108,7 @@ class NeonArcadeApp {
       document.getElementById('game-view').classList.remove('mode-word-defender');
       document.getElementById('game-view').classList.remove('mode-cyber-drift');
       document.getElementById('game-view').classList.remove('mode-cyber-core');
+      document.getElementById('game-view').classList.remove('mode-grid-runner');
       
       this.activeGame = this.laneSwitcher;
       this.showView('game');
@@ -115,6 +125,7 @@ class NeonArcadeApp {
       // Set layout overrides
       document.getElementById('game-view').classList.remove('mode-cyber-drift');
       document.getElementById('game-view').classList.remove('mode-cyber-core');
+      document.getElementById('game-view').classList.remove('mode-grid-runner');
       document.getElementById('game-view').classList.add('mode-word-defender');
       
       this.activeGame = this.wordDefender;
@@ -134,6 +145,7 @@ class NeonArcadeApp {
         // Set layout overrides
         document.getElementById('game-view').classList.remove('mode-word-defender');
         document.getElementById('game-view').classList.remove('mode-cyber-core');
+        document.getElementById('game-view').classList.remove('mode-grid-runner');
         document.getElementById('game-view').classList.add('mode-cyber-drift');
         
         this.activeGame = this.cyberDrift;
@@ -154,12 +166,34 @@ class NeonArcadeApp {
         // Set layout overrides
         document.getElementById('game-view').classList.remove('mode-word-defender');
         document.getElementById('game-view').classList.remove('mode-cyber-drift');
+        document.getElementById('game-view').classList.remove('mode-grid-runner');
         document.getElementById('game-view').classList.add('mode-cyber-core');
         
         this.activeGame = this.cyberCore;
         this.showView('game');
         if (this.cyberCore) {
           this.cyberCore.reset();
+        }
+      });
+    }
+
+    // Dashboard actions - Grid Runner
+    const btnPlayGridRunner = document.getElementById('btn-play-grid-runner');
+    if (btnPlayGridRunner) {
+      btnPlayGridRunner.addEventListener('click', () => {
+        this.initAudioContext();
+        this.playSynthSound('gameStart');
+        
+        // Set layout overrides
+        document.getElementById('game-view').classList.remove('mode-word-defender');
+        document.getElementById('game-view').classList.remove('mode-cyber-drift');
+        document.getElementById('game-view').classList.remove('mode-cyber-core');
+        document.getElementById('game-view').classList.add('mode-grid-runner');
+        
+        this.activeGame = this.gridRunner;
+        this.showView('game');
+        if (this.gridRunner) {
+          this.gridRunner.reset();
         }
       });
     }
@@ -369,6 +403,14 @@ class NeonArcadeApp {
       ccScoreEl.innerText = String(ccHighest).padStart(4, '0');
     }
 
+    // Grid Runner high score
+    const grScores = scores.filter(s => s.game === "GRID_RUNNER");
+    const grHighest = grScores.length > 0 ? grScores[0].score : 0;
+    const grScoreEl = document.getElementById('dash-high-score-grid-runner');
+    if (grScoreEl) {
+      grScoreEl.innerText = String(grHighest).padStart(4, '0');
+    }
+
     // Aggregate stats
     const totalRuns = localStorage.getItem('neonGrid_totalRuns') || 0;
     const peakWpm = localStorage.getItem('neonGrid_peakWpm') || 0;
@@ -389,6 +431,9 @@ class NeonArcadeApp {
     const descCC = this.sixSevenMode
       ? 'Aim and fire orbital turrets at network vulnerabilities. Threats converge from 360 degrees; defend the core by typing only "six seven", "four one", and "seven eleven".'
       : 'Aim and fire orbital turrets at network vulnerabilities. Threats converge on the core from 360 degrees; type words to fire energy beams before they hit rotating shields.';
+    const descGR = this.sixSevenMode
+      ? 'Navigate a 2D top-down grid as a light cycle. Type "6 7" or "4 1" to steer at junctions and "7 11" for speed burst, collecting data bytes while evading drones.'
+      : 'Navigate a 2D top-down grid as a light cycle. Type direction commands to steer at intersections, collect data bytes, and evade pursuing security drones.';
 
     const elLS = document.querySelector('#card-lane-switcher .game-desc');
     if (elLS) elLS.innerText = descLS;
@@ -398,6 +443,8 @@ class NeonArcadeApp {
     if (elCD) elCD.innerText = descCD;
     const elCC = document.querySelector('#card-cyber-core .game-desc');
     if (elCC) elCC.innerText = descCC;
+    const elGR = document.querySelector('#card-grid-runner .game-desc');
+    if (elGR) elGR.innerText = descGR;
   }
 
   renderHighScores() {
@@ -427,6 +474,9 @@ class NeonArcadeApp {
       } else if (item.game === "CYBER_CORE") {
         gameLabel = "CYBER CORE";
         gameColor = "purple";
+      } else if (item.game === "GRID_RUNNER") {
+        gameLabel = "GRID RUNNER";
+        gameColor = "green";
       }
       
       row.innerHTML = `
@@ -672,6 +722,25 @@ class NeonArcadeApp {
         break;
       }
 
+      case 'laser': {
+        const osc = this.audioCtx.createOscillator();
+        const gainNode = this.audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(900, time);
+        osc.frequency.exponentialRampToValueAtTime(100, time + 0.15);
+        
+        gainNode.gain.setValueAtTime(0.12, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+        
+        osc.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+        
+        osc.start(time);
+        osc.stop(time + 0.16);
+        break;
+      }
+
       case 'gameOver': {
         // Melodramatic minor scale descending arpeggio
         const notes = [440.00, 415.30, 349.23, 293.66, 220.00]; // A4, Ab4, F4, D4, A3
@@ -772,11 +841,32 @@ class NeonArcadeApp {
             <p class="tip-text" style="font-style: italic;">"PRO-TIP: Watch core's revolving shields. They absorb node collisions but let laser beams pass outwards!"</p>
           </div>
         `;
+      } else if (id === 'card-grid-runner') {
+        const upLeftCmd = this.sixSevenMode ? '6 7' : 'left';
+        const downRightCmd = this.sixSevenMode ? '4 1' : 'right';
+        const boostCmd = this.sixSevenMode ? '7 11' : 'boost';
+        const desc = this.sixSevenMode
+          ? "OBJECTIVE: Evade security drones by steering using digits '6 7', '4 1', '7 11'."
+          : "OBJECTIVE: Escape security drones by typing turn commands float-prompted at junctions.";
+        return `
+          <h3 class="panel-title">// TRANSMISSION: GRID_RUNNER</h3>
+          <div class="tip-detail" style="animation: flickerEffect 0.3s ease;">
+            <p class="tip-text" style="color: var(--color-neon-green); margin-bottom: 8px;"><strong>${desc}</strong></p>
+            <p class="tip-text" style="margin-bottom: 6px;"><strong>COMMANDS:</strong></p>
+            <ul style="list-style: none; padding-left: 10px; font-size: 0.85rem; line-height: 1.35rem; font-family: var(--font-mono); margin-bottom: 8px;">
+              <li>• Type <span style="color: var(--color-neon-green)">${upLeftCmd}</span> at junctions to steer left / up.</li>
+              <li>• Type <span style="color: var(--color-neon-green)">${downRightCmd}</span> at junctions to steer right / down.</li>
+              <li>• Type <span style="color: var(--color-neon-magenta)">${boostCmd}</span> to activate a speed burst.</li>
+              <li>• Type <span style="color: var(--color-neon-yellow)">shoot</span> at any time to fire lasers in 4 directions.</li>
+            </ul>
+            <p class="tip-text" style="font-style: italic;">"PRO-TIP: Look ahead at junctions and type instructions early to buffer turns!"</p>
+          </div>
+        `;
       }
       return '';
     };
 
-    const cardIds = ['card-lane-switcher', 'card-word-defender', 'card-cyber-drift', 'card-cyber-core'];
+    const cardIds = ['card-lane-switcher', 'card-word-defender', 'card-cyber-drift', 'card-cyber-core', 'card-grid-runner'];
 
     cardIds.forEach(id => {
       const card = document.getElementById(id);

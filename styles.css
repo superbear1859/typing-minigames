@@ -11,6 +11,7 @@
   --color-neon-magenta: #ff005b;
   --color-neon-purple: #9d00ff;
   --color-neon-yellow: #ffc400;
+  --color-neon-green: #00ff66;
   --color-text-white: #f5f0fa;
   --color-text-dim: #8c7ba2;
   
@@ -22,6 +23,7 @@
   --glow-magenta: 0 0 10px rgba(255, 0, 91, 0.6), 0 0 20px rgba(255, 0, 91, 0.3);
   --glow-purple: 0 0 10px rgba(157, 0, 255, 0.6), 0 0 20px rgba(157, 0, 255, 0.3);
   --glow-yellow: 0 0 10px rgba(255, 196, 0, 0.6), 0 0 20px rgba(255, 196, 0, 0.3);
+  --glow-green: 0 0 10px rgba(0, 255, 102, 0.6), 0 0 20px rgba(0, 255, 102, 0.3);
 }
 
 /* ==========================================================================
@@ -1429,5 +1431,54 @@ input:checked + .slider:before {
   box-shadow: 0 0 8px rgba(255, 0, 91, 0.85);
   transition: width 0.1s ease;
   border-radius: 2px;
+}
+
+/* ==========================================================================
+   GRID RUNNER MINIGAME OVERRIDES
+   ========================================================================== */
+#game-view.mode-grid-runner .cmd-dictionary {
+  display: none;
+}
+
+#game-view.mode-grid-runner .typing-hud {
+  grid-template-columns: 4fr 1.2fr;
+}
+
+/* Dashboard card specific styles for Grid Runner */
+#card-grid-runner .card-badge {
+  border-color: var(--color-neon-green);
+  color: var(--color-neon-green);
+  background: rgba(0, 255, 102, 0.1);
+}
+
+#card-grid-runner:hover .card-glow-border {
+  border-color: var(--color-neon-green);
+  box-shadow: 0 0 20px rgba(0, 255, 102, 0.35);
+}
+
+.glow-text-green {
+  color: var(--color-neon-green);
+  text-shadow: var(--glow-green);
+}
+
+.glow-badge-green {
+  border: 1px solid var(--color-neon-green);
+  color: var(--color-neon-green);
+  text-shadow: var(--glow-green);
+  box-shadow: var(--glow-green);
+}
+
+.btn-green {
+  border-color: var(--color-neon-green);
+  color: var(--color-neon-green);
+}
+
+.btn-green::after {
+  background: var(--color-neon-green);
+}
+
+.btn-green:hover {
+  box-shadow: var(--glow-green);
+  text-shadow: var(--glow-green);
 }
 
